@@ -902,26 +902,21 @@ export class SpaceScene {
 
       if (this.isSpawnDeferred(source)) {
         this.beginNodeSpawn(source);
-        this.cometQueue[writeIndex++] = next;
-        continue;
-      }
-      if (this.isNodeSpawning(source, ACTOR_SPAWN_MS, now)) {
-        this.cometQueue[writeIndex++] = next;
-        continue;
       }
 
       const repoId = target.node.parentRepoId;
       const repo = repoId ? this.nodeStates.get(repoId) : undefined;
-      if (repo) {
-        if (this.isSpawnDeferred(repo)) {
-          this.beginNodeSpawn(repo);
-          this.cometQueue[writeIndex++] = next;
-          continue;
-        }
-        if (this.isNodeSpawning(repo, REPO_SPAWN_MS, now)) {
-          this.cometQueue[writeIndex++] = next;
-          continue;
-        }
+      if (repo && this.isSpawnDeferred(repo)) {
+        this.beginNodeSpawn(repo);
+      }
+
+      if (this.isNodeSpawning(source, ACTOR_SPAWN_MS, now)) {
+        this.cometQueue[writeIndex++] = next;
+        continue;
+      }
+      if (repo && this.isNodeSpawning(repo, REPO_SPAWN_MS, now)) {
+        this.cometQueue[writeIndex++] = next;
+        continue;
       }
 
       if (
