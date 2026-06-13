@@ -18,6 +18,7 @@ import app.gitvisualizer.events.client.GitHubEventsClient;
 import app.gitvisualizer.events.client.GitHubEventsResponse;
 import app.gitvisualizer.events.client.model.GitHubEvent;
 import app.gitvisualizer.events.support.EventDeduplicator;
+import app.gitvisualizer.events.support.EventFilter;
 
 @Service
 public class EventIngestionService {
@@ -27,6 +28,7 @@ public class EventIngestionService {
 
 	private final GitHubEventsClient client;
 	private final EventDeduplicator deduplicator;
+	private final EventFilter eventFilter;
 	private final TaskScheduler taskScheduler;
 	private final EventReleaseScheduler releaseScheduler;
 	private final GitHubApiProperties properties;
@@ -37,11 +39,13 @@ public class EventIngestionService {
 	public EventIngestionService(
 			GitHubEventsClient client,
 			EventDeduplicator deduplicator,
+			EventFilter eventFilter,
 			TaskScheduler taskScheduler,
 			EventReleaseScheduler releaseScheduler,
 			GitHubApiProperties properties) {
 		this.client = client;
 		this.deduplicator = deduplicator;
+		this.eventFilter = eventFilter;
 		this.taskScheduler = taskScheduler;
 		this.releaseScheduler = releaseScheduler;
 		this.properties = properties;
@@ -92,12 +96,13 @@ public class EventIngestionService {
 		List<GitHubEvent> newEvents = deduplicator.filterNew(fetchedEvents);
 		deduplicator.trim();
 
-		if (newEvents.isEmpty()) {
+		List<GitHubEvent> includedEvents = eventFilter.filterIncluded(newEvents);
+		if (includedEvents.isEmpty()) {
 			return;
 		}
 
-		releaseScheduler.enqueueBatch(newEvents, windowSeconds);
-		log.info("Scheduled gradual release of {} new GitHub event(s) over {}s", newEvents.size(), windowSeconds);
+		releaseScheduler.enqueueBatch(includedEvents, windowSeconds);
+		log.info("Scheduled gradual release of {} new GitHub event(s) over {}s", includedEvents.size(), windowSeconds);
 	}
 
 	private void scheduleNextPoll(int delaySeconds) {
