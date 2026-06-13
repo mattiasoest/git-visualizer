@@ -34,7 +34,9 @@ public class EventReleaseScheduler {
 	private final List<ScheduledFuture<?>> pendingLiveTasks = new CopyOnWriteArrayList<>();
 	private final List<PendingLiveRelease> pendingLiveReleases = new CopyOnWriteArrayList<>();
 	private final Object deadlineLock = new Object();
+	private final Object lastBatchLock = new Object();
 	private Instant batchDeadline;
+	private List<GitHubEvent> lastPollBatch = List.of();
 
 	public EventReleaseScheduler(
 			TaskScheduler taskScheduler,
@@ -52,6 +54,10 @@ public class EventReleaseScheduler {
 	public void enqueueBatch(List<GitHubEvent> events, int windowSeconds) {
 		if (events.isEmpty()) {
 			return;
+		}
+
+		synchronized (lastBatchLock) {
+			lastPollBatch = List.copyOf(events);
 		}
 
 		if (!properties.gradualReleaseEnabled()) {
@@ -87,6 +93,14 @@ public class EventReleaseScheduler {
 
 		List<EventView> sorted = sortViewsOldestFirst(events);
 		scheduleDrip(sorted, windowSeconds, event -> broadcaster.sendToEmitter(emitter, event));
+	}
+
+	public List<EventView> lastPollBatchViews() {
+		synchronized (lastBatchLock) {
+			return lastPollBatch.stream()
+					.map(eventMapper::toView)
+					.toList();
+		}
 	}
 
 	public int remainingWindowSeconds() {

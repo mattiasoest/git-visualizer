@@ -148,6 +148,26 @@ class EventReleaseSchedulerTest {
 	}
 
 	@Test
+	void lastPollBatchViewsReturnsMostRecentBatchOnly() {
+		List<GitHubEvent> firstBatch = List.of(githubEvent("1", "2026-06-13T12:00:01Z"));
+		List<GitHubEvent> secondBatch = List.of(
+				githubEvent("2", "2026-06-13T12:00:02Z"),
+				githubEvent("3", "2026-06-13T12:00:03Z"));
+
+		scheduler.enqueueBatch(firstBatch, 10);
+		scheduler.enqueueBatch(secondBatch, 10);
+
+		assertThat(scheduler.lastPollBatchViews())
+				.extracting(EventView::id)
+				.containsExactly("2", "3");
+	}
+
+	@Test
+	void lastPollBatchViewsIsEmptyBeforeAnyPoll() {
+		assertThat(scheduler.lastPollBatchViews()).isEmpty();
+	}
+
+	@Test
 	void gradualReleaseDisabledReleasesImmediately() {
 		EventReleaseScheduler immediateScheduler = new EventReleaseScheduler(
 				taskScheduler,

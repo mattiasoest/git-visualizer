@@ -18,4 +18,9 @@ public record GitHubApiProperties(
 		boolean gradualReleaseEnabled,
 		@Min(10) int releaseWindowSeconds
 ) {
+	public GitHubApiProperties {
+		if (releaseWindowSeconds < 10) {
+			releaseWindowSeconds = 60;
+		}
+	}
 }

@@ -3,16 +3,12 @@ import type { EventView } from '../types/event';
 import { eventColor } from '../types/event';
 import {
   buildGraph,
-  eventNodeId,
   graphDataFingerprint,
+  groupedEventNodeId,
   MAX_GRAPH_EVENTS,
   type GraphData,
 } from './space/graphBuilder';
 import { SpaceScene } from './space/SpaceScene';
-
-function countEventNodes(data: GraphData): number {
-  return data.nodes.filter((node) => node.kind === 'event').length;
-}
 
 interface SpaceVisualizationProps {
   events: EventView[];
@@ -109,10 +105,13 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
       const data = pendingGraphRef.current;
       if (data) {
         sceneRef.current?.updateGraph(data);
-        onEventCountChange?.(countEventNodes(data));
       }
     });
-  }, [graphData, onEventCountChange]);
+  }, [graphData]);
+
+  useEffect(() => {
+    onEventCountChange?.(filteredEvents.length);
+  }, [filteredEvents, onEventCountChange]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -126,9 +125,11 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
       const repoName = event.repo?.name;
       if (!actorLogin || !repoName) continue;
 
-      scene.spawnComet(
+      const targetId = groupedEventNodeId(event.type, repoName);
+
+      scene.enqueueComet(
         `actor:${actorLogin}`,
-        eventNodeId(event.id),
+        targetId,
         eventColor(event.type),
         event.type === 'PushEvent' ? event.commitMessage ?? undefined : undefined,
       );
@@ -156,7 +157,8 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
           <div className="space-placeholder__ring" />
           <p>Scanning the cosmos for GitHub activity...</p>
           <p className="hint">
-            Developers appear as stars, repositories as crystal worlds — each event is a colored satellite with its own label.
+            Developers appear as stars, repositories as crystal worlds — activity streams in as comets
+            and merges into each repo&apos;s event satellite.
           </p>
         </div>
       )}

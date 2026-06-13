@@ -53,7 +53,7 @@ export function useEventStream() {
 
     setConnectionStatus((status) => (status === 'connected' ? 'reconnecting' : 'connecting'));
 
-    const source = new EventSource('/api/stream/events?replay=1000');
+    const source = new EventSource('/api/stream/events');
     eventSourceRef.current = source;
 
     source.addEventListener('github-event', (message) => {

@@ -29,13 +29,14 @@ export interface GraphData {
   links: GraphLink[];
 }
 
-export function eventNodeId(eventId: string): string {
-  return `event:${eventId}`;
+/** One activity node per event type + repository (e.g. all pushes to same repo share one satellite). */
+export function groupedEventNodeId(eventType: string, repoName: string): string {
+  return `event:${eventType}:${repoName}`;
 }
 
 export function buildGraph(events: EventView[]): GraphData {
   const nodes = new Map<string, GraphNode>();
-  const links: GraphLink[] = [];
+  const links = new Map<string, GraphLink>();
 
   for (const event of events) {
     const actorLogin = event.actor?.login;
@@ -44,7 +45,7 @@ export function buildGraph(events: EventView[]): GraphData {
 
     const actorId = `actor:${actorLogin}`;
     const repoId = `repo:${repoName}`;
-    const nodeId = eventNodeId(event.id);
+    const nodeId = groupedEventNodeId(event.type, repoName);
     const color = eventColor(event.type);
     const displayLabel =
       event.type === "PushEvent" && event.commitMessage
@@ -70,46 +71,78 @@ export function buildGraph(events: EventView[]): GraphData {
     repoNode.eventCount += 1;
     nodes.set(repoId, repoNode);
 
-    nodes.set(nodeId, {
+    const eventNode = nodes.get(nodeId) ?? {
       id: nodeId,
       label: displayLabel,
-      kind: "event",
+      kind: "event" as const,
       eventType: event.type,
       color,
       parentRepoId: repoId,
-      eventCount: 1,
+      eventCount: 0,
       commitMessage: event.commitMessage ?? undefined,
-    });
+    };
+    eventNode.eventCount += 1;
+    eventNode.label = displayLabel;
+    eventNode.commitMessage = event.commitMessage ?? undefined;
+    nodes.set(nodeId, eventNode);
 
-    links.push({
+    const activityKey = `${actorId}->${nodeId}`;
+    const activityLink = links.get(activityKey) ?? {
       sourceId: actorId,
       targetId: nodeId,
-      weight: 1,
+      weight: 0,
       color,
-      key: `${actorId}->${nodeId}`,
-      kind: "activity",
-    });
+      key: activityKey,
+      kind: "activity" as const,
+    };
+    activityLink.weight += 1;
+    links.set(activityKey, activityLink);
 
-    links.push({
+    const tetherKey = `${nodeId}->${repoId}`;
+    const tetherLink = links.get(tetherKey) ?? {
       sourceId: nodeId,
       targetId: repoId,
-      weight: 1,
+      weight: 0,
       color,
-      key: `${nodeId}->${repoId}`,
-      kind: "tether",
-    });
+      key: tetherKey,
+      kind: "tether" as const,
+    };
+    tetherLink.weight += 1;
+    links.set(tetherKey, tetherLink);
   }
 
-  return { nodes: Array.from(nodes.values()), links };
+  const linkedActorIds = new Set<string>();
+  const linkedRepoIds = new Set<string>();
+  const linkedEventIds = new Set<string>();
+  for (const link of links.values()) {
+    if (link.kind === "activity") {
+      linkedActorIds.add(link.sourceId);
+      linkedEventIds.add(link.targetId);
+    } else {
+      linkedEventIds.add(link.sourceId);
+      linkedRepoIds.add(link.targetId);
+    }
+  }
+
+  const filteredNodes = Array.from(nodes.values()).filter((node) => {
+    if (node.kind === "actor") return linkedActorIds.has(node.id);
+    if (node.kind === "repo") return linkedRepoIds.has(node.id);
+    if (node.kind === "event") return linkedEventIds.has(node.id);
+    return true;
+  });
+
+  return { nodes: filteredNodes, links: Array.from(links.values()) };
 }
 
 export function graphDataFingerprint(data: GraphData): string {
   const nodePart = data.nodes
-    .map((n) => (n.kind === "event" ? n.id : `${n.id}:${n.eventCount}`))
+    .map((n) =>
+      n.kind === "event" ? `${n.id}:${n.eventCount}:${n.label}` : `${n.id}:${n.eventCount}`,
+    )
     .sort()
     .join("|");
   const linkPart = data.links
-    .map((l) => l.key)
+    .map((l) => `${l.key}:${l.weight}`)
     .sort()
     .join("|");
   return `${nodePart}::${linkPart}`;
