@@ -9,11 +9,11 @@ const REPO_BASE_RADIUS = 1.8;
 const COMET_DURATION_MS = 2200;
 const MAX_ACTIVE_COMETS = 10;
 const TRAIL_POINTS = 10;
-const LABEL_RENDER_INTERVAL = 3;
 
 interface NodeState {
   node: GraphNode;
-  mesh: THREE.Group;
+  anchor: THREE.Group;
+  visual: THREE.Group;
   label: CSS2DObject;
   position: THREE.Vector3;
   pulseUntil: number;
@@ -48,10 +48,69 @@ function hashToUnitVector(id: string): THREE.Vector3 {
   );
 }
 
-function nodeOrbitRadius(node: GraphNode): number {
-  const base = node.kind === 'actor' ? 28 : 52;
-  const spread = Math.min(node.eventCount, 12) * 1.4;
-  return base + spread + (hashToUnitVector(node.id).y + 1) * 8;
+const REPO_ORBIT_BASE = 36;
+const REPO_ORBIT_SPREAD = 0.6;
+const ACTOR_CLUSTER_RADIUS = 6;
+
+function computeNodePositions(
+  nodes: GraphNode[],
+  links: GraphLink[],
+): Map<string, THREE.Vector3> {
+  const positions = new Map<string, THREE.Vector3>();
+  const repos = nodes.filter((n) => n.kind === 'repo');
+  const actors = nodes.filter((n) => n.kind === 'actor');
+
+  const actorToRepos = new Map<string, { repoId: string; weight: number }[]>();
+  for (const link of links) {
+    const list = actorToRepos.get(link.sourceId) ?? [];
+    list.push({ repoId: link.targetId, weight: link.weight });
+    actorToRepos.set(link.sourceId, list);
+  }
+
+  for (const repo of repos) {
+    const direction = hashToUnitVector(repo.id).normalize();
+    const radius = REPO_ORBIT_BASE + Math.min(repo.eventCount, 8) * REPO_ORBIT_SPREAD;
+    positions.set(repo.id, direction.multiplyScalar(radius));
+  }
+
+  for (const actor of actors) {
+    const connections = actorToRepos.get(actor.id);
+    if (!connections || connections.length === 0) {
+      positions.set(actor.id, hashToUnitVector(actor.id).normalize().multiplyScalar(22));
+      continue;
+    }
+
+    const anchor = new THREE.Vector3();
+    let totalWeight = 0;
+    for (const { repoId, weight } of connections) {
+      const repoPos = positions.get(repoId);
+      if (!repoPos) continue;
+      anchor.add(repoPos.clone().multiplyScalar(weight));
+      totalWeight += weight;
+    }
+    if (totalWeight === 0) continue;
+    anchor.divideScalar(totalWeight);
+
+    const hash = hashToUnitVector(actor.id);
+    const angle = (hash.x + 1) * Math.PI;
+    const dist = ACTOR_CLUSTER_RADIUS * (0.55 + (hash.y + 1) * 0.22);
+
+    const normal = anchor.clone().normalize();
+    const up = Math.abs(normal.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const tangent1 = new THREE.Vector3().crossVectors(normal, up).normalize();
+    const tangent2 = new THREE.Vector3().crossVectors(normal, tangent1);
+
+    positions.set(
+      actor.id,
+      anchor
+        .clone()
+        .add(tangent1.clone().multiplyScalar(Math.cos(angle) * dist))
+        .add(tangent2.clone().multiplyScalar(Math.sin(angle) * dist))
+        .add(normal.clone().multiplyScalar(-dist * 0.25)),
+    );
+  }
+
+  return positions;
 }
 
 export class SpaceScene {
@@ -61,6 +120,7 @@ export class SpaceScene {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private controls: OrbitControls;
+  private autoRotateListeners = new Set<(enabled: boolean) => void>();
   private clock = new THREE.Clock();
   private nodeStates = new Map<string, NodeState>();
   private linkLines = new Map<string, THREE.Line>();
@@ -73,7 +133,6 @@ export class SpaceScene {
   private textureCache = new Map<string, THREE.Texture>();
   private positions = new Map<string, THREE.Vector3>();
   private pointSprite = softCircleSprite();
-  private frameCount = 0;
   private isVisible = true;
   private cometPosition = new THREE.Vector3();
   private onVisibilityChange = (): void => {
@@ -166,6 +225,7 @@ export class SpaceScene {
     this.labelRenderer.setSize(clientWidth, clientHeight);
     this.labelRenderer.domElement.style.position = 'absolute';
     this.labelRenderer.domElement.style.top = '0';
+    this.labelRenderer.domElement.style.left = '0';
     this.labelRenderer.domElement.style.pointerEvents = 'none';
     container.appendChild(this.labelRenderer.domElement);
 
@@ -177,7 +237,7 @@ export class SpaceScene {
     this.controls.autoRotate = true;
     this.controls.autoRotateSpeed = 0.35;
     this.controls.addEventListener('start', () => {
-      this.controls.autoRotate = false;
+      this.setAutoRotate(false);
     });
 
     const ambient = new THREE.AmbientLight(0x6a7aaa, 1.1);
@@ -273,17 +333,6 @@ export class SpaceScene {
     return new THREE.Points(geometry, material);
   }
 
-  private getPosition(node: GraphNode): THREE.Vector3 {
-    const existing = this.positions.get(node.id);
-    if (existing) return existing;
-
-    const direction = hashToUnitVector(node.id).normalize();
-    const radius = nodeOrbitRadius(node);
-    const position = direction.multiplyScalar(radius);
-    this.positions.set(node.id, position);
-    return position;
-  }
-
   private createLabel(text: string, kind: 'actor' | 'repo'): CSS2DObject {
     const element = document.createElement('div');
     element.className = `space-label space-label--${kind}`;
@@ -366,26 +415,34 @@ export class SpaceScene {
     return group;
   }
 
-  private upsertNode(node: GraphNode): NodeState {
+  private removeNodeState(state: NodeState): void {
+    state.label.element.remove();
+    this.scene.remove(state.anchor);
+  }
+
+  private upsertNode(node: GraphNode, position: THREE.Vector3): NodeState {
     const existing = this.nodeStates.get(node.id);
-    const position = this.getPosition(node);
 
     if (existing) {
       existing.node = node;
       existing.position.copy(position);
-      existing.mesh.position.copy(position);
+      existing.anchor.position.copy(position);
+      existing.label.element.textContent = node.label;
       return existing;
     }
 
-    const mesh = node.kind === 'actor' ? this.createActorMesh(node) : this.createRepoMesh(node);
-    mesh.position.copy(position);
-    this.scene.add(mesh);
+    const anchor = new THREE.Group();
+    anchor.position.copy(position);
+    this.scene.add(anchor);
+
+    const visual = node.kind === 'actor' ? this.createActorMesh(node) : this.createRepoMesh(node);
+    anchor.add(visual);
 
     const label = this.createLabel(node.label, node.kind);
     label.position.set(0, node.kind === 'actor' ? 4 : 3.2, 0);
-    mesh.add(label);
+    anchor.add(label);
 
-    const state: NodeState = { node, mesh, label, position, pulseUntil: 0 };
+    const state: NodeState = { node, anchor, visual, label, position, pulseUntil: 0 };
     this.nodeStates.set(node.id, state);
     return state;
   }
@@ -410,6 +467,7 @@ export class SpaceScene {
       const existing = this.linkLines.get(link.key);
       if (existing) {
         (existing.material as THREE.LineBasicMaterial).opacity = opacity;
+        existing.geometry.setFromPoints([source.position, target.position]);
         continue;
       }
 
@@ -434,13 +492,21 @@ export class SpaceScene {
 
     for (const [id, state] of this.nodeStates) {
       if (activeIds.has(id)) continue;
-      this.scene.remove(state.mesh);
+      this.removeNodeState(state);
       this.positions.delete(id);
       this.nodeStates.delete(id);
     }
 
+    if (data.nodes.length === 0) {
+      this.clearComets();
+    }
+
+    this.positions = computeNodePositions(data.nodes, data.links);
+
     for (const node of data.nodes) {
-      this.upsertNode(node);
+      const position = this.positions.get(node.id);
+      if (!position) continue;
+      this.upsertNode(node, position);
     }
 
     this.syncLinks(data.links);
@@ -448,10 +514,21 @@ export class SpaceScene {
   }
 
   private updateLabelVisibility(nodeCount: number): void {
-    const showAll = nodeCount <= 35;
+    const visible = nodeCount > 0;
     for (const state of this.nodeStates.values()) {
-      state.label.visible = showAll || state.node.eventCount >= 3;
+      state.label.visible = visible;
     }
+  }
+
+  private clearComets(): void {
+    for (const comet of this.comets) {
+      this.cometGroup.remove(comet.mesh);
+      this.cometGroup.remove(comet.trail);
+      (comet.mesh.material as THREE.Material).dispose();
+      comet.trail.geometry.dispose();
+      (comet.trail.material as THREE.Material).dispose();
+    }
+    this.comets.length = 0;
   }
 
   spawnComet(sourceId: string, targetId: string, color: string): void {
@@ -501,6 +578,25 @@ export class SpaceScene {
     const pulseUntil = performance.now() + 800;
     source.pulseUntil = pulseUntil;
     target.pulseUntil = pulseUntil;
+  }
+
+  getAutoRotate(): boolean {
+    return this.controls.autoRotate;
+  }
+
+  setAutoRotate(enabled: boolean): void {
+    if (this.controls.autoRotate === enabled) return;
+    this.controls.autoRotate = enabled;
+    for (const listener of this.autoRotateListeners) {
+      listener(enabled);
+    }
+  }
+
+  onAutoRotateChange(listener: (enabled: boolean) => void): () => void {
+    this.autoRotateListeners.add(listener);
+    return () => {
+      this.autoRotateListeners.delete(listener);
+    };
   }
 
   resize(width: number, height: number): void {
@@ -556,13 +652,13 @@ export class SpaceScene {
     for (const state of this.nodeStates.values()) {
       const pulse = now < state.pulseUntil ? 1 + Math.sin(now * 0.02) * 0.15 : 1;
       const breathe = 1 + Math.sin(time * 1.2 + state.position.x) * 0.03;
-      state.mesh.scale.setScalar(pulse * breathe);
+      state.visual.scale.setScalar(pulse * breathe);
 
       if (state.node.kind === 'repo') {
-        state.mesh.rotation.y = time * 0.4;
-        state.mesh.rotation.x = Math.sin(time * 0.3) * 0.2;
+        state.visual.rotation.y = time * 0.4;
+        state.visual.rotation.x = Math.sin(time * 0.3) * 0.2;
       } else {
-        const ring = state.mesh.children[state.mesh.children.length - 1];
+        const ring = state.visual.children[state.visual.children.length - 1];
         ring.rotation.z = time * 0.5;
       }
     }
@@ -575,17 +671,13 @@ export class SpaceScene {
     if (!this.isVisible) return;
 
     const now = performance.now();
-    this.frameCount += 1;
 
     this.controls.update();
     this.updateComets(now);
     this.updateNodes(now);
 
     this.renderer.render(this.scene, this.camera);
-
-    if (this.frameCount % LABEL_RENDER_INTERVAL === 0) {
-      this.labelRenderer.render(this.scene, this.camera);
-    }
+    this.labelRenderer.render(this.scene, this.camera);
   };
 
   dispose(): void {
@@ -594,7 +686,7 @@ export class SpaceScene {
     this.controls.dispose();
 
     for (const state of this.nodeStates.values()) {
-      this.scene.remove(state.mesh);
+      this.removeNodeState(state);
     }
     this.nodeStates.clear();
 

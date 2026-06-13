@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EventView } from '../types/event';
 import { eventColor } from '../types/event';
 import { buildGraph, MAX_GRAPH_EVENTS } from './space/graphBuilder';
@@ -14,6 +14,7 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
   const sceneRef = useRef<SpaceScene | null>(null);
   const seenEventIds = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
+  const [autoRotating, setAutoRotating] = useState(true);
 
   const filteredEvents = useMemo(() => {
     const filtered = events.filter((event) => activeTypes.has(event.type));
@@ -28,6 +29,8 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
 
     const scene = new SpaceScene(container);
     sceneRef.current = scene;
+    setAutoRotating(scene.getAutoRotate());
+    const unsubscribeAutoRotate = scene.onAutoRotateChange(setAutoRotating);
 
     const observer = new ResizeObserver(([entry]) => {
       scene.resize(entry.contentRect.width, entry.contentRect.height);
@@ -35,6 +38,7 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
     observer.observe(container);
 
     return () => {
+      unsubscribeAutoRotate();
       observer.disconnect();
       scene.dispose();
       sceneRef.current = null;
@@ -81,6 +85,16 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
 
   return (
     <div ref={containerRef} className="space-visualization">
+      {!autoRotating && (
+        <button
+          type="button"
+          className="space-auto-rotate-btn"
+          onClick={() => sceneRef.current?.setAutoRotate(true)}
+          aria-label="Resume auto-rotation"
+        >
+          ↻ Auto-rotate
+        </button>
+      )}
       {graphData.nodes.length === 0 && (
         <div className="space-placeholder">
           <div className="space-placeholder__ring" />
