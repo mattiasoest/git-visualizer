@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityGraph } from './components/ActivityGraph';
+import { SpaceVisualization } from './components/SpaceVisualization';
 import { useEventStream } from './hooks/useEventStream';
 import { FILTERABLE_TYPES, eventColor } from './types/event';
 import './App.css';
@@ -42,8 +42,8 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div>
-          <h1>GitHub Events Visualizer</h1>
-          <p className="subtitle">Global public activity feed</p>
+          <h1>GitHub Cosmos</h1>
+          <p className="subtitle">Live public activity across the open-source universe</p>
         </div>
         <div className="filters">
           {FILTERABLE_TYPES.map((type) => (
@@ -61,7 +61,7 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        <ActivityGraph events={events} activeTypes={activeTypes} />
+        <SpaceVisualization events={events} activeTypes={activeTypes} />
       </main>
 
       <footer className="status-bar">
