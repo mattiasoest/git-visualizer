@@ -22,8 +22,6 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
   const seenEventIds = useRef<Set<string>>(new Set());
   const graphDataRef = useRef<GraphData>({ nodes: [], links: [] });
   const fingerprintRef = useRef('');
-  const pendingGraphRef = useRef<GraphData | null>(null);
-  const rafRef = useRef<number | null>(null);
   const [autoRotating, setAutoRotating] = useState(true);
 
   const filteredEvents = useMemo(() => {
@@ -87,35 +85,16 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
         cancelAnimationFrame(resizeRaf);
         resizeRaf = null;
       }
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
       scene.dispose();
       sceneRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    pendingGraphRef.current = graphData;
-    if (rafRef.current !== null) return;
-
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      const data = pendingGraphRef.current;
-      if (data) {
-        sceneRef.current?.updateGraph(data);
-      }
-    });
-  }, [graphData]);
-
-  useEffect(() => {
-    onEventCountChange?.(filteredEvents.length);
-  }, [filteredEvents, onEventCountChange]);
-
-  useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
+
+    scene.updateGraph(graphData);
 
     for (const event of filteredEvents) {
       if (seenEventIds.current.has(event.id)) continue;
@@ -125,11 +104,9 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
       const repoName = event.repo?.name;
       if (!actorLogin || !repoName) continue;
 
-      const targetId = groupedEventNodeId(event.type, repoName);
-
       scene.enqueueComet(
         `actor:${actorLogin}`,
-        targetId,
+        groupedEventNodeId(event.type, repoName),
         eventColor(event.type),
         event.type === 'PushEvent' ? event.commitMessage ?? undefined : undefined,
       );
@@ -138,7 +115,11 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
     if (seenEventIds.current.size > MAX_GRAPH_EVENTS * 2) {
       seenEventIds.current = new Set(filteredEvents.map((event) => event.id));
     }
-  }, [filteredEvents]);
+  }, [graphData, filteredEvents]);
+
+  useEffect(() => {
+    onEventCountChange?.(filteredEvents.length);
+  }, [filteredEvents, onEventCountChange]);
 
   return (
     <div ref={containerRef} className="space-visualization">
