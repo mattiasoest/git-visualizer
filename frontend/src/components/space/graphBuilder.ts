@@ -1,12 +1,12 @@
-import type { EventView } from '../../types/event';
-import { eventColor } from '../../types/event';
+import type { EventView } from "../../types/event";
+import { eventColor } from "../../types/event";
 
-export const MAX_GRAPH_EVENTS = 80;
+export const MAX_GRAPH_EVENTS = 1000;
 
 export interface GraphNode {
   id: string;
   label: string;
-  kind: 'actor' | 'repo' | 'event';
+  kind: "actor" | "repo" | "event";
   avatarUrl?: string;
   eventCount: number;
   eventType?: string;
@@ -21,7 +21,7 @@ export interface GraphLink {
   weight: number;
   color: string;
   key: string;
-  kind: 'activity' | 'tether';
+  kind: "activity" | "tether";
 }
 
 export interface GraphData {
@@ -47,12 +47,14 @@ export function buildGraph(events: EventView[]): GraphData {
     const nodeId = eventNodeId(event.id);
     const color = eventColor(event.type);
     const displayLabel =
-      event.type === 'PushEvent' && event.commitMessage ? event.commitMessage : event.summary;
+      event.type === "PushEvent" && event.commitMessage
+        ? event.commitMessage
+        : event.summary;
 
     const actorNode = nodes.get(actorId) ?? {
       id: actorId,
       label: actorLogin,
-      kind: 'actor' as const,
+      kind: "actor" as const,
       avatarUrl: event.actor?.avatarUrl,
       eventCount: 0,
     };
@@ -61,8 +63,8 @@ export function buildGraph(events: EventView[]): GraphData {
 
     const repoNode = nodes.get(repoId) ?? {
       id: repoId,
-      label: repoName.split('/').pop() ?? repoName,
-      kind: 'repo' as const,
+      label: repoName.split("/").pop() ?? repoName,
+      kind: "repo" as const,
       eventCount: 0,
     };
     repoNode.eventCount += 1;
@@ -71,7 +73,7 @@ export function buildGraph(events: EventView[]): GraphData {
     nodes.set(nodeId, {
       id: nodeId,
       label: displayLabel,
-      kind: 'event',
+      kind: "event",
       eventType: event.type,
       color,
       parentRepoId: repoId,
@@ -85,7 +87,7 @@ export function buildGraph(events: EventView[]): GraphData {
       weight: 1,
       color,
       key: `${actorId}->${nodeId}`,
-      kind: 'activity',
+      kind: "activity",
     });
 
     links.push({
@@ -94,7 +96,7 @@ export function buildGraph(events: EventView[]): GraphData {
       weight: 1,
       color,
       key: `${nodeId}->${repoId}`,
-      kind: 'tether',
+      kind: "tether",
     });
   }
 
@@ -103,12 +105,12 @@ export function buildGraph(events: EventView[]): GraphData {
 
 export function graphDataFingerprint(data: GraphData): string {
   const nodePart = data.nodes
-    .map((n) => (n.kind === 'event' ? n.id : `${n.id}:${n.eventCount}`))
+    .map((n) => (n.kind === "event" ? n.id : `${n.id}:${n.eventCount}`))
     .sort()
-    .join('|');
+    .join("|");
   const linkPart = data.links
     .map((l) => l.key)
     .sort()
-    .join('|');
+    .join("|");
   return `${nodePart}::${linkPart}`;
 }

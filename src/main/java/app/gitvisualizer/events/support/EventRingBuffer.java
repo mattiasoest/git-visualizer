@@ -12,7 +12,7 @@ import app.gitvisualizer.events.client.model.GitHubEvent;
 @Component
 public class EventRingBuffer {
 
-	private static final int MAX_SIZE = 300;
+	private static final int MAX_SIZE = 1000;
 
 	private final Deque<GitHubEvent> events = new ArrayDeque<>();
 

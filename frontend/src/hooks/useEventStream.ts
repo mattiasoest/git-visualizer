@@ -1,8 +1,6 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import type { ConnectionStatus, EventView, EventsSnapshotResponse } from '../types/event';
 
-const MAX_EVENTS = 300;
-
 function mergeEvents(existing: EventView[], incoming: EventView[]): EventView[] {
   const map = new Map<string, EventView>();
   for (const event of incoming) {
@@ -13,9 +11,9 @@ function mergeEvents(existing: EventView[], incoming: EventView[]): EventView[] 
       map.set(event.id, event);
     }
   }
-  return Array.from(map.values())
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, MAX_EVENTS);
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 }
 
 export function useEventStream() {
@@ -56,7 +54,7 @@ export function useEventStream() {
 
     setConnectionStatus((status) => (status === 'connected' ? 'reconnecting' : 'connecting'));
 
-    const source = new EventSource('/api/stream/events?replay=50');
+    const source = new EventSource('/api/stream/events?replay=1000');
     eventSourceRef.current = source;
 
     source.addEventListener('github-event', (message) => {
@@ -83,7 +81,7 @@ export function useEventStream() {
 
     async function bootstrap() {
       try {
-        const response = await fetch('/api/events?limit=50');
+        const response = await fetch('/api/events?limit=1000');
         if (!response.ok) {
           throw new Error(`Bootstrap failed: ${response.status}`);
         }

@@ -26,7 +26,7 @@ public class EventQueryService {
 	}
 
 	public EventsSnapshotResponse getSnapshot(int limit) {
-		int cappedLimit = Math.min(Math.max(limit, 1), 100);
+		int cappedLimit = Math.min(Math.max(limit, 1), 1000);
 		List<EventView> events = ringBuffer.snapshot(cappedLimit).stream()
 				.map(eventMapper::toView)
 				.toList();

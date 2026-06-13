@@ -27,7 +27,7 @@ public class EventStreamService {
 	}
 
 	public SseEmitter subscribeToStream(int replay) throws IOException {
-		int cappedReplay = Math.min(Math.max(replay, 0), 100);
+		int cappedReplay = Math.min(Math.max(replay, 0), 1000);
 		SseEmitter emitter = broadcaster.subscribe();
 
 		List<EventView> replayEvents = ringBuffer.snapshot(cappedReplay).stream()
