@@ -1,0 +1,7 @@
+github:
+  api:
+    polling-enabled: false
+    base-url: https://api.github.com
+    events-path: /events
+    per-page: 100
+    min-poll-interval-seconds: 60
