@@ -31,6 +31,24 @@ class EventMapperTest {
 	}
 
 	@Test
+	void mapsPushEventCommitMessage() throws Exception {
+		ObjectNode payload = objectMapper.createObjectNode();
+		payload.put("ref", "refs/heads/main");
+		payload.put("head", "abc123");
+		var commits = payload.putArray("commits");
+		ObjectNode older = commits.addObject();
+		older.put("sha", "def456");
+		older.put("message", "older commit");
+		ObjectNode head = commits.addObject();
+		head.put("sha", "abc123");
+		head.put("message", "fix: handle null payloads\n\nSigned-off-by: octocat");
+
+		EventView view = mapper.toView(sampleEvent("PushEvent", payload));
+
+		assertThat(view.commitMessage()).isEqualTo("fix: handle null payloads");
+	}
+
+	@Test
 	void mapsPullRequestEventSummary() throws Exception {
 		ObjectNode payload = objectMapper.createObjectNode();
 		payload.put("action", "opened");

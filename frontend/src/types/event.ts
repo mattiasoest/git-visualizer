@@ -17,6 +17,7 @@ export interface EventView {
   ref: string | null;
   action: string | null;
   prNumber: number | null;
+  commitMessage: string | null;
 }
 
 export interface EventsSnapshotResponse {
@@ -27,13 +28,13 @@ export interface EventsSnapshotResponse {
 export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 export const EVENT_TYPE_COLORS: Record<string, string> = {
-  PushEvent: '#3fb950',
+  PushEvent: '#f85149',
   PullRequestEvent: '#a371f7',
   IssuesEvent: '#f0883e',
   IssueCommentEvent: '#f0883e',
   ForkEvent: '#58a6ff',
   WatchEvent: '#ffd33d',
-  CreateEvent: '#56d364',
+  CreateEvent: '#b62324',
   DeleteEvent: '#f85149',
   ReleaseEvent: '#79c0ff',
   CommitCommentEvent: '#8b949e',

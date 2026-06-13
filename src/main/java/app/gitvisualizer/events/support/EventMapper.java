@@ -28,7 +28,39 @@ public class EventMapper {
 				buildSummary(event.type(), payload),
 				textOrNull(payload, "ref"),
 				textOrNull(payload, "action"),
-				intOrNull(payload, "number"));
+				intOrNull(payload, "number"),
+				pushCommitMessage(event.type(), payload));
+	}
+
+	private String pushCommitMessage(String type, JsonNode payload) {
+		if (!"PushEvent".equals(type) || payload == null || !payload.has("commits")) {
+			return null;
+		}
+		JsonNode commits = payload.get("commits");
+		if (!commits.isArray() || commits.isEmpty()) {
+			return null;
+		}
+		String head = textOrNull(payload, "head");
+		if (head != null) {
+			for (JsonNode commit : commits) {
+				if (head.equals(textOrNull(commit, "sha"))) {
+					return trimCommitMessage(textOrNull(commit, "message"));
+				}
+			}
+		}
+		return trimCommitMessage(textOrNull(commits.get(commits.size() - 1), "message"));
+	}
+
+	private String trimCommitMessage(String message) {
+		if (message == null || message.isBlank()) {
+			return null;
+		}
+		String firstLine = message.strip().lines().findFirst().orElse("").trim();
+		if (firstLine.isEmpty()) {
+			return null;
+		}
+		int maxLen = 72;
+		return firstLine.length() <= maxLen ? firstLine : firstLine.substring(0, maxLen - 1) + "…";
 	}
 
 	private String buildSummary(String type, JsonNode payload) {

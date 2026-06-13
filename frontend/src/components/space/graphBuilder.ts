@@ -6,9 +6,13 @@ export const MAX_GRAPH_EVENTS = 80;
 export interface GraphNode {
   id: string;
   label: string;
-  kind: 'actor' | 'repo';
+  kind: 'actor' | 'repo' | 'event';
   avatarUrl?: string;
   eventCount: number;
+  eventType?: string;
+  color?: string;
+  parentRepoId?: string;
+  commitMessage?: string;
 }
 
 export interface GraphLink {
@@ -17,6 +21,7 @@ export interface GraphLink {
   weight: number;
   color: string;
   key: string;
+  kind: 'activity' | 'tether';
 }
 
 export interface GraphData {
@@ -24,10 +29,13 @@ export interface GraphData {
   links: GraphLink[];
 }
 
+export function eventNodeId(eventId: string): string {
+  return `event:${eventId}`;
+}
+
 export function buildGraph(events: EventView[]): GraphData {
   const nodes = new Map<string, GraphNode>();
   const links: GraphLink[] = [];
-  const linkMap = new Map<string, GraphLink>();
 
   for (const event of events) {
     const actorLogin = event.actor?.login;
@@ -36,6 +44,10 @@ export function buildGraph(events: EventView[]): GraphData {
 
     const actorId = `actor:${actorLogin}`;
     const repoId = `repo:${repoName}`;
+    const nodeId = eventNodeId(event.id);
+    const color = eventColor(event.type);
+    const displayLabel =
+      event.type === 'PushEvent' && event.commitMessage ? event.commitMessage : event.summary;
 
     const actorNode = nodes.get(actorId) ?? {
       id: actorId,
@@ -56,21 +68,34 @@ export function buildGraph(events: EventView[]): GraphData {
     repoNode.eventCount += 1;
     nodes.set(repoId, repoNode);
 
-    const linkKey = `${actorId}->${repoId}`;
-    const existingLink = linkMap.get(linkKey);
-    if (existingLink) {
-      existingLink.weight += 1;
-    } else {
-      const link: GraphLink = {
-        sourceId: actorId,
-        targetId: repoId,
-        weight: 1,
-        color: eventColor(event.type),
-        key: linkKey,
-      };
-      linkMap.set(linkKey, link);
-      links.push(link);
-    }
+    nodes.set(nodeId, {
+      id: nodeId,
+      label: displayLabel,
+      kind: 'event',
+      eventType: event.type,
+      color,
+      parentRepoId: repoId,
+      eventCount: 1,
+      commitMessage: event.commitMessage ?? undefined,
+    });
+
+    links.push({
+      sourceId: actorId,
+      targetId: nodeId,
+      weight: 1,
+      color,
+      key: `${actorId}->${nodeId}`,
+      kind: 'activity',
+    });
+
+    links.push({
+      sourceId: nodeId,
+      targetId: repoId,
+      weight: 1,
+      color,
+      key: `${nodeId}->${repoId}`,
+      kind: 'tether',
+    });
   }
 
   return { nodes: Array.from(nodes.values()), links };
@@ -78,11 +103,11 @@ export function buildGraph(events: EventView[]): GraphData {
 
 export function graphDataFingerprint(data: GraphData): string {
   const nodePart = data.nodes
-    .map((n) => `${n.id}:${n.eventCount}`)
+    .map((n) => (n.kind === 'event' ? n.id : `${n.id}:${n.eventCount}`))
     .sort()
     .join('|');
   const linkPart = data.links
-    .map((l) => `${l.key}:${l.weight}`)
+    .map((l) => l.key)
     .sort()
     .join('|');
   return `${nodePart}::${linkPart}`;

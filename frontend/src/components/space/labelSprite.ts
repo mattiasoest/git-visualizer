@@ -101,6 +101,79 @@ export function createLabelSprite(text: string, kind: 'actor' | 'repo'): THREE.S
   return sprite;
 }
 
+const COMMIT_LABEL_HEIGHT = 0.72;
+const MAX_COMMIT_CHARS = 52;
+
+function truncateCommitText(text: string): string {
+  const firstLine = text.split('\n')[0].trim();
+  if (firstLine.length <= MAX_COMMIT_CHARS) return firstLine;
+  return `${firstLine.slice(0, MAX_COMMIT_CHARS - 1)}…`;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '');
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function createCommitLabelSprite(text: string, accentColor: string): THREE.Sprite {
+  const displayText = truncateCommitText(text);
+  const dpr = 2;
+  const fontSize = 10;
+  const paddingX = 8;
+  const paddingY = 3;
+  const borderRadius = 4;
+
+  const measureCanvas = document.createElement('canvas');
+  const measureCtx = measureCanvas.getContext('2d')!;
+  measureCtx.font = `italic 500 ${fontSize}px system-ui, -apple-system, sans-serif`;
+  const textWidth = Math.ceil(measureCtx.measureText(displayText).width);
+  const logicalWidth = Math.min(textWidth + paddingX * 2, 280);
+  const logicalHeight = fontSize + paddingY * 2 + 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = logicalWidth * dpr;
+  canvas.height = logicalHeight * dpr;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(dpr, dpr);
+
+  ctx.font = `italic 500 ${fontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = hexToRgba(accentColor, 0.14);
+  ctx.strokeStyle = hexToRgba(accentColor, 0.55);
+  ctx.lineWidth = 1;
+  roundRect(ctx, 0.5, 0.5, logicalWidth - 1, logicalHeight - 1, borderRadius);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#f0e8e8';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(displayText, paddingX, logicalHeight / 2, logicalWidth - paddingX * 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const sprite = new THREE.Sprite(material);
+  const aspect = canvas.width / canvas.height;
+  sprite.scale.set(COMMIT_LABEL_HEIGHT * aspect, COMMIT_LABEL_HEIGHT, 1);
+  return sprite;
+}
+
+export function disposeCommitLabel(sprite: THREE.Sprite): void {
+  const material = sprite.material as THREE.SpriteMaterial;
+  material.map?.dispose();
+  material.dispose();
+}
+
 export function disposeLabelTextures(): void {
   for (const texture of textureCache.values()) {
     texture.dispose();

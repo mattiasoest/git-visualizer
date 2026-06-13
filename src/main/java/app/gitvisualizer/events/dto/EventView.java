@@ -9,6 +9,7 @@ public record EventView(
 		String summary,
 		String ref,
 		String action,
-		Integer prNumber
+		Integer prNumber,
+		String commitMessage
 ) {
 }

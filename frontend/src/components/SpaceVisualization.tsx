@@ -3,6 +3,7 @@ import type { EventView } from '../types/event';
 import { eventColor } from '../types/event';
 import {
   buildGraph,
+  eventNodeId,
   graphDataFingerprint,
   MAX_GRAPH_EVENTS,
   type GraphData,
@@ -132,8 +133,9 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
 
       scene.spawnComet(
         `actor:${actorLogin}`,
-        `repo:${repoName}`,
+        eventNodeId(event.id),
         eventColor(event.type),
+        event.type === 'PushEvent' ? event.commitMessage ?? undefined : undefined,
       );
     }
 
@@ -159,7 +161,7 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
           <div className="space-placeholder__ring" />
           <p>Scanning the cosmos for GitHub activity...</p>
           <p className="hint">
-            Developers appear as stars, repositories as crystal worlds — events streak across the void as comets.
+            Developers appear as stars, repositories as crystal worlds — each event is a colored satellite with its own label.
           </p>
         </div>
       )}

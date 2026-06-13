@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GraphData, GraphLink, GraphNode } from './graphBuilder';
-import { createLabelSprite, disposeLabelTextures } from './labelSprite';
+import { createCommitLabelSprite, createLabelSprite, disposeCommitLabel, disposeLabelTextures } from './labelSprite';
 import { softCircleSprite } from './softSprite';
 
 const ACTOR_BASE_RADIUS = 2.2;
 const REPO_BASE_RADIUS = 1.8;
+const EVENT_NODE_BASE_RADIUS = 0.75;
+const EVENT_ORBIT_RADIUS = 5.5;
 const COMET_DURATION_MS = 2200;
 const MAX_ACTIVE_COMETS = 10;
 const TRAIL_POINTS = 10;
@@ -31,6 +33,7 @@ interface Comet {
   mid: THREE.Vector3;
   color: THREE.Color;
   startTime: number;
+  label?: THREE.Sprite;
 }
 
 const scratchA = new THREE.Vector3();
@@ -64,18 +67,35 @@ const REPO_ORBIT_BASE = 36;
 const REPO_ORBIT_SPREAD = 0.6;
 const ACTOR_CLUSTER_RADIUS = 6;
 
+function eventOrbitOffset(eventId: string, time = 0): THREE.Vector3 {
+  const hash = hashToUnitVector(eventId);
+  const baseAngle = (hash.x + 1) * Math.PI;
+  const radius = EVENT_ORBIT_RADIUS + (hash.y + 1) * 2;
+  const wobble = time * 0.25 + hash.z * 0.35;
+  const angle = baseAngle + wobble;
+  return new THREE.Vector3(
+    Math.cos(angle) * radius,
+    (hash.z * 0.5 + 0.5) * radius * 0.4 - radius * 0.15,
+    Math.sin(angle) * radius * 0.85,
+  );
+}
+
 function computeNodePositions(
   nodes: GraphNode[],
   links: GraphLink[],
 ): Map<string, THREE.Vector3> {
   const positions = new Map<string, THREE.Vector3>();
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const repos = nodes.filter((n) => n.kind === 'repo');
   const actors = nodes.filter((n) => n.kind === 'actor');
 
   const actorToRepos = new Map<string, { repoId: string; weight: number }[]>();
   for (const link of links) {
+    if (link.kind !== 'activity') continue;
+    const eventNode = nodeById.get(link.targetId);
+    if (!eventNode?.parentRepoId) continue;
     const list = actorToRepos.get(link.sourceId) ?? [];
-    list.push({ repoId: link.targetId, weight: link.weight });
+    list.push({ repoId: eventNode.parentRepoId, weight: link.weight });
     actorToRepos.set(link.sourceId, list);
   }
 
@@ -85,6 +105,13 @@ function computeNodePositions(
       REPO_ORBIT_BASE + Math.min(repo.eventCount, 8) * REPO_ORBIT_SPREAD,
     );
     positions.set(repo.id, scratchA.clone());
+  }
+
+  for (const node of nodes) {
+    if (node.kind !== 'event' || !node.parentRepoId) continue;
+    const repoPos = positions.get(node.parentRepoId);
+    if (!repoPos) continue;
+    positions.set(node.id, repoPos.clone().add(eventOrbitOffset(node.id)));
   }
 
   for (const actor of actors) {
@@ -198,6 +225,8 @@ export class SpaceScene {
   private readonly repoCrystalGeo = new THREE.IcosahedronGeometry(1, 0);
   private readonly repoOrbitGeo = new THREE.TorusGeometry(1, 0.033, 6, 32);
   private readonly repoGlowGeo = new THREE.SphereGeometry(1, 8, 8);
+  private readonly eventCoreGeo = new THREE.OctahedronGeometry(1, 0);
+  private readonly eventGlowGeo = new THREE.SphereGeometry(1, 8, 8);
   private readonly cometGeo = new THREE.SphereGeometry(0.35, 8, 8);
 
   private readonly actorCoreMat = new THREE.MeshBasicMaterial({ color: 0x4a9eff });
@@ -408,6 +437,10 @@ export class SpaceScene {
     return REPO_BASE_RADIUS + Math.min(eventCount, 10) * 0.1;
   }
 
+  private eventNodeRadius(): number {
+    return EVENT_NODE_BASE_RADIUS;
+  }
+
   private applyActorScales(visual: THREE.Group, radius: number, hasAvatar: boolean): void {
     let index = 0;
     visual.children[index].scale.setScalar(radius);
@@ -482,8 +515,75 @@ export class SpaceScene {
     return { group, baseRadius: scale };
   }
 
-  private removeNodeState(state: NodeState): void {
+  private createEventMesh(node: GraphNode): { group: THREE.Group; baseRadius: number } {
+    const group = new THREE.Group();
+    const radius = this.eventNodeRadius();
+    const color = new THREE.Color(node.color ?? '#8b949e');
+
+    const core = new THREE.Mesh(
+      this.eventCoreGeo,
+      new THREE.MeshBasicMaterial({ color }),
+    );
+    core.scale.setScalar(radius);
+    group.add(core);
+
+    const glow = new THREE.Mesh(
+      this.eventGlowGeo,
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.32,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    glow.scale.setScalar(radius * 1.8);
+    group.add(glow);
+
+    return { group, baseRadius: radius };
+  }
+
+  private disposeEventMaterials(visual: THREE.Group): void {
+    for (const child of visual.children) {
+      if (child instanceof THREE.Mesh) {
+        (child.material as THREE.Material).dispose();
+      }
+    }
+  }
+
+  private disposeNodeLabel(state: NodeState): void {
+    if (state.node.kind === 'event' && state.node.label) {
+      disposeCommitLabel(state.label);
+      return;
+    }
     (state.label.material as THREE.SpriteMaterial).dispose();
+  }
+
+  private syncEventLabel(state: NodeState, node: GraphNode): void {
+    if (state.label) {
+      this.disposeNodeLabel(state);
+      state.anchor.remove(state.label);
+    }
+
+    if (!node.label) {
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ visible: false }));
+      label.visible = false;
+      state.anchor.add(label);
+      state.label = label;
+      return;
+    }
+
+    const label = createCommitLabelSprite(node.label, node.color ?? '#8b949e');
+    label.position.set(0, -1.9, 0);
+    state.anchor.add(label);
+    state.label = label;
+  }
+
+  private removeNodeState(state: NodeState): void {
+    if (state.node.kind === 'event') {
+      this.disposeEventMaterials(state.visual);
+    }
+    this.disposeNodeLabel(state);
     this.scene.remove(state.anchor);
   }
 
@@ -512,15 +612,19 @@ export class SpaceScene {
           const radius = this.actorRadius(node.eventCount);
           existing.baseRadius = radius;
           this.applyActorScales(existing.visual, radius, Boolean(node.avatarUrl));
-        } else {
+        } else if (node.kind === 'repo') {
           const scale = this.repoRadius(node.eventCount);
           existing.baseRadius = scale;
           this.applyRepoScales(existing.visual, scale);
         }
       }
 
-      if (labelChanged) {
+      if (labelChanged && node.kind === 'actor') {
         this.updateLabelSprite(existing, node.label, node.kind);
+      } else if (labelChanged && node.kind === 'repo') {
+        this.updateLabelSprite(existing, node.label, node.kind);
+      } else if (labelChanged && node.kind === 'event') {
+        this.syncEventLabel(existing, node);
       }
       return existing;
     }
@@ -538,16 +642,32 @@ export class SpaceScene {
       visual = actorMesh.group;
       baseRadius = actorMesh.baseRadius;
       ringMesh = actorMesh.ring;
-    } else {
+    } else if (node.kind === 'repo') {
       const repoMesh = this.createRepoMesh(node);
       visual = repoMesh.group;
       baseRadius = repoMesh.baseRadius;
+    } else {
+      const eventMesh = this.createEventMesh(node);
+      visual = eventMesh.group;
+      baseRadius = eventMesh.baseRadius;
     }
 
     anchor.add(visual);
 
-    const label = createLabelSprite(node.label, node.kind);
-    label.position.set(0, node.kind === 'actor' ? 3.2 : 2.6, 0);
+    let label: THREE.Sprite;
+    if (node.kind === 'event') {
+      label = node.label
+        ? createCommitLabelSprite(node.label, node.color ?? '#8b949e')
+        : new THREE.Sprite(new THREE.SpriteMaterial({ visible: false }));
+      if (node.label) {
+        label.position.set(0, -1.9, 0);
+      } else {
+        label.visible = false;
+      }
+    } else {
+      label = createLabelSprite(node.label, node.kind);
+      label.position.set(0, node.kind === 'actor' ? 3.2 : 2.6, 0);
+    }
     anchor.add(label);
 
     const state: NodeState = {
@@ -580,7 +700,10 @@ export class SpaceScene {
       const target = this.nodeStates.get(link.targetId);
       if (!source || !target) continue;
 
-      const opacity = 0.15 + Math.min(link.weight, 6) * 0.04;
+      const isTether = link.kind === 'tether';
+      const opacity = isTether
+        ? 0.22 + Math.min(link.weight, 4) * 0.03
+        : 0.15 + Math.min(link.weight, 6) * 0.04;
       const existing = this.linkLines.get(link.key);
       if (existing) {
         (existing.material as THREE.LineBasicMaterial).opacity = opacity;
@@ -649,22 +772,34 @@ export class SpaceScene {
 
   private updateLabelVisibility(visible: boolean): void {
     for (const state of this.nodeStates.values()) {
-      state.label.visible = visible;
+      if (state.node.kind === 'event') {
+        state.label.visible = visible && Boolean(state.node.label);
+      } else {
+        state.label.visible = visible;
+      }
     }
   }
 
   private clearComets(): void {
     for (const comet of this.comets) {
-      this.cometGroup.remove(comet.mesh);
-      this.cometGroup.remove(comet.trail);
-      (comet.mesh.material as THREE.Material).dispose();
-      comet.trail.geometry.dispose();
-      (comet.trail.material as THREE.Material).dispose();
+      this.disposeComet(comet);
     }
     this.comets.length = 0;
   }
 
-  spawnComet(sourceId: string, targetId: string, color: string): void {
+  private disposeComet(comet: Comet): void {
+    this.cometGroup.remove(comet.mesh);
+    this.cometGroup.remove(comet.trail);
+    (comet.mesh.material as THREE.Material).dispose();
+    comet.trail.geometry.dispose();
+    (comet.trail.material as THREE.Material).dispose();
+    if (comet.label) {
+      this.cometGroup.remove(comet.label);
+      disposeCommitLabel(comet.label);
+    }
+  }
+
+  spawnComet(sourceId: string, targetId: string, color: string, commitMessage?: string): void {
     if (this.comets.length >= MAX_ACTIVE_COMETS) return;
 
     const source = this.nodeStates.get(sourceId);
@@ -696,6 +831,14 @@ export class SpaceScene {
     this.cometGroup.add(mesh);
     this.cometGroup.add(trail);
 
+    let label: THREE.Sprite | undefined;
+    if (commitMessage) {
+      label = createCommitLabelSprite(commitMessage, color);
+      label.position.copy(from);
+      label.position.y += 2.4;
+      this.cometGroup.add(label);
+    }
+
     this.comets.push({
       mesh,
       trail,
@@ -706,6 +849,7 @@ export class SpaceScene {
       mid,
       color: cometColor,
       startTime: performance.now(),
+      label,
     });
 
     const pulseUntil = performance.now() + 800;
@@ -769,18 +913,34 @@ export class SpaceScene {
       comet.trailPositions[idx + 2] = pos.z;
       comet.trail.geometry.attributes.position.needsUpdate = true;
 
+      if (comet.label) {
+        comet.label.position.copy(pos);
+        comet.label.position.y += 2.4;
+        const labelMaterial = comet.label.material as THREE.SpriteMaterial;
+        labelMaterial.opacity = 1 - t * 0.9;
+      }
+
       if (t < 1) {
         this.comets[writeIndex++] = comet;
       } else {
-        this.cometGroup.remove(comet.mesh);
-        this.cometGroup.remove(comet.trail);
-        (comet.mesh.material as THREE.Material).dispose();
-        comet.trail.geometry.dispose();
-        (comet.trail.material as THREE.Material).dispose();
+        this.disposeComet(comet);
       }
     }
 
     this.comets.length = writeIndex;
+  }
+
+  private updateLinkPositions(): void {
+    for (const [key, line] of this.linkLines) {
+      const arrowIdx = key.indexOf('->');
+      if (arrowIdx < 0) continue;
+      const sourceId = key.slice(0, arrowIdx);
+      const targetId = key.slice(arrowIdx + 2);
+      const source = this.nodeStates.get(sourceId);
+      const target = this.nodeStates.get(targetId);
+      if (!source || !target) continue;
+      updateLinkEndpoints(line, source.position, target.position);
+    }
   }
 
   private updateNodes(now: number): void {
@@ -789,11 +949,22 @@ export class SpaceScene {
     for (const state of this.nodeStates.values()) {
       const isPulsing = now < state.pulseUntil;
       const isRepo = state.node.kind === 'repo';
+      const isEvent = state.node.kind === 'event';
 
-      if (isPulsing || isRepo) {
+      if (isEvent && state.node.parentRepoId) {
+        const parentPos = this.positions.get(state.node.parentRepoId);
+        if (parentPos) {
+          const offset = eventOrbitOffset(state.node.id, time);
+          state.anchor.position.copy(parentPos).add(offset);
+          state.position.copy(state.anchor.position);
+        }
+      }
+
+      if (isPulsing || isRepo || isEvent) {
         const pulse = isPulsing ? 1 + Math.sin(now * 0.02) * 0.15 : 1;
         const breathe = isRepo ? 1 + Math.sin(time * 1.2 + state.position.x) * 0.03 : 1;
-        state.visual.scale.setScalar(pulse * breathe);
+        const eventPulse = isEvent ? 1 + Math.sin(time * 2.4 + state.position.z) * 0.06 : 1;
+        state.visual.scale.setScalar(pulse * breathe * eventPulse);
       } else if (state.visual.scale.x !== 1) {
         state.visual.scale.setScalar(1);
       }
@@ -801,10 +972,15 @@ export class SpaceScene {
       if (isRepo) {
         state.visual.rotation.y = time * 0.4;
         state.visual.rotation.x = Math.sin(time * 0.3) * 0.2;
+      } else if (isEvent) {
+        state.visual.rotation.y = time * 1.2;
+        state.visual.rotation.x = time * 0.8;
       } else if (state.ringMesh) {
         state.ringMesh.rotation.z = time * 0.5;
       }
     }
+
+    this.updateLinkPositions();
 
     this.starfield.rotation.y = time * 0.008;
     this.nebula.rotation.y = -time * 0.003;
@@ -839,9 +1015,7 @@ export class SpaceScene {
     this.linkLines.clear();
 
     for (const comet of this.comets) {
-      (comet.mesh.material as THREE.Material).dispose();
-      comet.trail.geometry.dispose();
-      (comet.trail.material as THREE.Material).dispose();
+      this.disposeComet(comet);
     }
 
     this.starfield.geometry.dispose();
@@ -855,6 +1029,8 @@ export class SpaceScene {
     this.repoCrystalGeo.dispose();
     this.repoOrbitGeo.dispose();
     this.repoGlowGeo.dispose();
+    this.eventCoreGeo.dispose();
+    this.eventGlowGeo.dispose();
     this.cometGeo.dispose();
 
     for (const texture of this.textureCache.values()) {
