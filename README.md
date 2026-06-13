@@ -55,7 +55,7 @@ Builds the React app into `src/main/resources/static` and packages a single Spri
 
 ```bash
 ./mvnw package
-java -jar target/github-0.0.1-SNAPSHOT.jar
+java -jar target/gitvisualizer-0.0.1-SNAPSHOT.jar
 ```
 
 Open http://localhost:8080

@@ -1,0 +1,40 @@
+package app.gitvisualizer.events.service;
+
+import java.io.IOException;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import app.gitvisualizer.events.dto.EventView;
+import app.gitvisualizer.events.support.EventMapper;
+import app.gitvisualizer.events.support.EventRingBuffer;
+
+@Service
+public class EventStreamService {
+
+	private final EventRingBuffer ringBuffer;
+	private final EventMapper eventMapper;
+	private final EventBroadcaster broadcaster;
+
+	public EventStreamService(
+			EventRingBuffer ringBuffer,
+			EventMapper eventMapper,
+			EventBroadcaster broadcaster) {
+		this.ringBuffer = ringBuffer;
+		this.eventMapper = eventMapper;
+		this.broadcaster = broadcaster;
+	}
+
+	public SseEmitter subscribeToStream(int replay) throws IOException {
+		int cappedReplay = Math.min(Math.max(replay, 0), 100);
+		SseEmitter emitter = broadcaster.subscribe();
+
+		List<EventView> replayEvents = ringBuffer.snapshot(cappedReplay).stream()
+				.map(eventMapper::toView)
+				.toList();
+		broadcaster.sendReplay(emitter, replayEvents);
+
+		return emitter;
+	}
+}
