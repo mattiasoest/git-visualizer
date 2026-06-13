@@ -234,21 +234,9 @@ body {
   background: #ff7b72;
 }
 
-.disclaimer {
-  color: #6a7a9a;
-  margin-left: auto;
-}
-
 @container (min-width: 700px) {
   .filters {
     justify-content: flex-end;
-  }
-}
-
-@media (max-width: 960px) {
-  .disclaimer {
-    margin-left: 0;
-    width: 100%;
   }
 }
 

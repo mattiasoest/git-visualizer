@@ -73,7 +73,6 @@ export default function App() {
         <span className={`status-dot ${connectionStatus}`} />
         <span>{statusLabel}</span>
         <span>{displayedEventCount} events</span>
-        <span className="disclaimer">Data from GitHub public feed; events stream continuously</span>
       </footer>
     </div>
   );
