@@ -75,3 +75,15 @@ export function buildGraph(events: EventView[]): GraphData {
 
   return { nodes: Array.from(nodes.values()), links };
 }
+
+export function graphDataFingerprint(data: GraphData): string {
+  const nodePart = data.nodes
+    .map((n) => `${n.id}:${n.eventCount}`)
+    .sort()
+    .join('|');
+  const linkPart = data.links
+    .map((l) => `${l.key}:${l.weight}`)
+    .sort()
+    .join('|');
+  return `${nodePart}::${linkPart}`;
+}

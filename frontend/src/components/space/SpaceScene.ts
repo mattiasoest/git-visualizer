@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import type { GraphData, GraphLink, GraphNode } from './graphBuilder';
+import { createLabelSprite, disposeLabelTextures } from './labelSprite';
 import { softCircleSprite } from './softSprite';
 
 const ACTOR_BASE_RADIUS = 2.2;
@@ -14,9 +14,11 @@ interface NodeState {
   node: GraphNode;
   anchor: THREE.Group;
   visual: THREE.Group;
-  label: CSS2DObject;
+  label: THREE.Sprite;
   position: THREE.Vector3;
   pulseUntil: number;
+  baseRadius: number;
+  ringMesh?: THREE.Mesh;
 }
 
 interface Comet {
@@ -30,6 +32,16 @@ interface Comet {
   color: THREE.Color;
   startTime: number;
 }
+
+const scratchA = new THREE.Vector3();
+const scratchB = new THREE.Vector3();
+const scratchC = new THREE.Vector3();
+const scratchD = new THREE.Vector3();
+const scratchE = new THREE.Vector3();
+const scratchNormal = new THREE.Vector3();
+const scratchUp = new THREE.Vector3();
+const scratchTangent1 = new THREE.Vector3();
+const scratchTangent2 = new THREE.Vector3();
 
 function hashToUnitVector(id: string): THREE.Vector3 {
   let hash = 0;
@@ -68,55 +80,88 @@ function computeNodePositions(
   }
 
   for (const repo of repos) {
-    const direction = hashToUnitVector(repo.id).normalize();
-    const radius = REPO_ORBIT_BASE + Math.min(repo.eventCount, 8) * REPO_ORBIT_SPREAD;
-    positions.set(repo.id, direction.multiplyScalar(radius));
+    const direction = hashToUnitVector(repo.id);
+    scratchA.copy(direction).normalize().multiplyScalar(
+      REPO_ORBIT_BASE + Math.min(repo.eventCount, 8) * REPO_ORBIT_SPREAD,
+    );
+    positions.set(repo.id, scratchA.clone());
   }
 
   for (const actor of actors) {
     const connections = actorToRepos.get(actor.id);
     if (!connections || connections.length === 0) {
-      positions.set(actor.id, hashToUnitVector(actor.id).normalize().multiplyScalar(22));
+      scratchA.copy(hashToUnitVector(actor.id)).normalize().multiplyScalar(22);
+      positions.set(actor.id, scratchA.clone());
       continue;
     }
 
-    const anchor = new THREE.Vector3();
+    scratchA.set(0, 0, 0);
     let totalWeight = 0;
     for (const { repoId, weight } of connections) {
       const repoPos = positions.get(repoId);
       if (!repoPos) continue;
-      anchor.add(repoPos.clone().multiplyScalar(weight));
+      scratchA.add(scratchB.copy(repoPos).multiplyScalar(weight));
       totalWeight += weight;
     }
     if (totalWeight === 0) continue;
-    anchor.divideScalar(totalWeight);
+    scratchA.divideScalar(totalWeight);
 
     const hash = hashToUnitVector(actor.id);
     const angle = (hash.x + 1) * Math.PI;
     const dist = ACTOR_CLUSTER_RADIUS * (0.55 + (hash.y + 1) * 0.22);
 
-    const normal = anchor.clone().normalize();
-    const up = Math.abs(normal.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-    const tangent1 = new THREE.Vector3().crossVectors(normal, up).normalize();
-    const tangent2 = new THREE.Vector3().crossVectors(normal, tangent1);
+    scratchNormal.copy(scratchA).normalize();
+    scratchUp.set(0, 1, 0);
+    if (Math.abs(scratchNormal.y) >= 0.9) {
+      scratchUp.set(1, 0, 0);
+    }
+    scratchTangent1.crossVectors(scratchNormal, scratchUp).normalize();
+    scratchTangent2.crossVectors(scratchNormal, scratchTangent1);
 
-    positions.set(
-      actor.id,
-      anchor
-        .clone()
-        .add(tangent1.clone().multiplyScalar(Math.cos(angle) * dist))
-        .add(tangent2.clone().multiplyScalar(Math.sin(angle) * dist))
-        .add(normal.clone().multiplyScalar(-dist * 0.25)),
-    );
+    scratchC.copy(scratchTangent1).multiplyScalar(Math.cos(angle) * dist);
+    scratchD.copy(scratchTangent2).multiplyScalar(Math.sin(angle) * dist);
+    scratchE.copy(scratchNormal).multiplyScalar(-dist * 0.25);
+
+    scratchB.copy(scratchA).add(scratchC).add(scratchD).add(scratchE);
+    positions.set(actor.id, scratchB.clone());
   }
 
   return positions;
 }
 
+function createLinkGeometry(source: THREE.Vector3, target: THREE.Vector3): THREE.BufferGeometry {
+  const positions = new Float32Array([
+    source.x,
+    source.y,
+    source.z,
+    target.x,
+    target.y,
+    target.z,
+  ]);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  return geometry;
+}
+
+function updateLinkEndpoints(
+  line: THREE.Line,
+  source: THREE.Vector3,
+  target: THREE.Vector3,
+): void {
+  const attr = line.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const arr = attr.array as Float32Array;
+  arr[0] = source.x;
+  arr[1] = source.y;
+  arr[2] = source.z;
+  arr[3] = target.x;
+  arr[4] = target.y;
+  arr[5] = target.z;
+  attr.needsUpdate = true;
+}
+
 export class SpaceScene {
   private container: HTMLElement;
   private renderer: THREE.WebGLRenderer;
-  private labelRenderer: CSS2DRenderer;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private controls: OrbitControls;
@@ -132,6 +177,8 @@ export class SpaceScene {
   private textureLoader = new THREE.TextureLoader();
   private textureCache = new Map<string, THREE.Texture>();
   private positions = new Map<string, THREE.Vector3>();
+  private nodeTopology = new Set<string>();
+  private linkTopology = new Set<string>();
   private pointSprite = softCircleSprite();
   private isVisible = true;
   private cometPosition = new THREE.Vector3();
@@ -220,14 +267,6 @@ export class SpaceScene {
     this.renderer.setSize(clientWidth, clientHeight);
     this.renderer.setClearColor(0x020014, 1);
     container.appendChild(this.renderer.domElement);
-
-    this.labelRenderer = new CSS2DRenderer();
-    this.labelRenderer.setSize(clientWidth, clientHeight);
-    this.labelRenderer.domElement.style.position = 'absolute';
-    this.labelRenderer.domElement.style.top = '0';
-    this.labelRenderer.domElement.style.left = '0';
-    this.labelRenderer.domElement.style.pointerEvents = 'none';
-    container.appendChild(this.labelRenderer.domElement);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -333,13 +372,6 @@ export class SpaceScene {
     return new THREE.Points(geometry, material);
   }
 
-  private createLabel(text: string, kind: 'actor' | 'repo'): CSS2DObject {
-    const element = document.createElement('div');
-    element.className = `space-label space-label--${kind}`;
-    element.textContent = text;
-    return new CSS2DObject(element);
-  }
-
   private loadAvatarTexture(url: string, onReady: (texture: THREE.Texture) => void): void {
     const cached = this.textureCache.get(url);
     if (cached) {
@@ -360,9 +392,36 @@ export class SpaceScene {
     );
   }
 
-  private createActorMesh(node: GraphNode): THREE.Group {
+  private actorRadius(eventCount: number): number {
+    return ACTOR_BASE_RADIUS + Math.min(eventCount, 8) * 0.12;
+  }
+
+  private repoRadius(eventCount: number): number {
+    return REPO_BASE_RADIUS + Math.min(eventCount, 10) * 0.1;
+  }
+
+  private applyActorScales(visual: THREE.Group, radius: number, hasAvatar: boolean): void {
+    let index = 0;
+    visual.children[index].scale.setScalar(radius);
+    index += 1;
+    if (hasAvatar) {
+      visual.children[index].scale.setScalar(radius * 0.92);
+      index += 1;
+    }
+    visual.children[index].scale.setScalar(radius * 1.35);
+    index += 1;
+    visual.children[index].scale.setScalar(radius * 1.5);
+  }
+
+  private applyRepoScales(visual: THREE.Group, scale: number): void {
+    visual.children[0].scale.setScalar(scale);
+    visual.children[1].scale.setScalar(scale * 1.8);
+    visual.children[2].scale.setScalar(scale * 1.6);
+  }
+
+  private createActorMesh(node: GraphNode): { group: THREE.Group; ring: THREE.Mesh; baseRadius: number } {
     const group = new THREE.Group();
-    const radius = ACTOR_BASE_RADIUS + Math.min(node.eventCount, 8) * 0.12;
+    const radius = this.actorRadius(node.eventCount);
 
     const core = new THREE.Mesh(this.actorCoreGeo, this.actorCoreMat);
     core.scale.setScalar(radius);
@@ -391,12 +450,12 @@ export class SpaceScene {
     ring.rotation.x = Math.PI / 2 + 0.4;
     group.add(ring);
 
-    return group;
+    return { group, ring, baseRadius: radius };
   }
 
-  private createRepoMesh(node: GraphNode): THREE.Group {
+  private createRepoMesh(node: GraphNode): { group: THREE.Group; baseRadius: number } {
     const group = new THREE.Group();
-    const scale = REPO_BASE_RADIUS + Math.min(node.eventCount, 10) * 0.1;
+    const scale = this.repoRadius(node.eventCount);
 
     const crystal = new THREE.Mesh(this.repoCrystalGeo, this.repoCrystalMat);
     crystal.scale.setScalar(scale);
@@ -412,22 +471,49 @@ export class SpaceScene {
     glow.scale.setScalar(scale * 1.6);
     group.add(glow);
 
-    return group;
+    return { group, baseRadius: scale };
   }
 
   private removeNodeState(state: NodeState): void {
-    state.label.element.remove();
+    (state.label.material as THREE.SpriteMaterial).dispose();
     this.scene.remove(state.anchor);
+  }
+
+  private updateLabelSprite(state: NodeState, text: string, kind: 'actor' | 'repo'): void {
+    (state.label.material as THREE.SpriteMaterial).dispose();
+    state.anchor.remove(state.label);
+
+    const label = createLabelSprite(text, kind);
+    label.position.set(0, kind === 'actor' ? 3.2 : 2.6, 0);
+    state.anchor.add(label);
+    state.label = label;
   }
 
   private upsertNode(node: GraphNode, position: THREE.Vector3): NodeState {
     const existing = this.nodeStates.get(node.id);
 
     if (existing) {
+      const eventCountChanged = existing.node.eventCount !== node.eventCount;
+      const labelChanged = existing.node.label !== node.label;
       existing.node = node;
       existing.position.copy(position);
       existing.anchor.position.copy(position);
-      existing.label.element.textContent = node.label;
+
+      if (eventCountChanged) {
+        if (node.kind === 'actor') {
+          const radius = this.actorRadius(node.eventCount);
+          existing.baseRadius = radius;
+          this.applyActorScales(existing.visual, radius, Boolean(node.avatarUrl));
+        } else {
+          const scale = this.repoRadius(node.eventCount);
+          existing.baseRadius = scale;
+          this.applyRepoScales(existing.visual, scale);
+        }
+      }
+
+      if (labelChanged) {
+        this.updateLabelSprite(existing, node.label, node.kind);
+      }
       return existing;
     }
 
@@ -435,14 +521,37 @@ export class SpaceScene {
     anchor.position.copy(position);
     this.scene.add(anchor);
 
-    const visual = node.kind === 'actor' ? this.createActorMesh(node) : this.createRepoMesh(node);
+    let visual: THREE.Group;
+    let baseRadius: number;
+    let ringMesh: THREE.Mesh | undefined;
+
+    if (node.kind === 'actor') {
+      const actorMesh = this.createActorMesh(node);
+      visual = actorMesh.group;
+      baseRadius = actorMesh.baseRadius;
+      ringMesh = actorMesh.ring;
+    } else {
+      const repoMesh = this.createRepoMesh(node);
+      visual = repoMesh.group;
+      baseRadius = repoMesh.baseRadius;
+    }
+
     anchor.add(visual);
 
-    const label = this.createLabel(node.label, node.kind);
-    label.position.set(0, node.kind === 'actor' ? 4 : 3.2, 0);
+    const label = createLabelSprite(node.label, node.kind);
+    label.position.set(0, node.kind === 'actor' ? 3.2 : 2.6, 0);
     anchor.add(label);
 
-    const state: NodeState = { node, anchor, visual, label, position, pulseUntil: 0 };
+    const state: NodeState = {
+      node,
+      anchor,
+      visual,
+      label,
+      position,
+      pulseUntil: 0,
+      baseRadius,
+      ringMesh,
+    };
     this.nodeStates.set(node.id, state);
     return state;
   }
@@ -467,14 +576,11 @@ export class SpaceScene {
       const existing = this.linkLines.get(link.key);
       if (existing) {
         (existing.material as THREE.LineBasicMaterial).opacity = opacity;
-        existing.geometry.setFromPoints([source.position, target.position]);
+        updateLinkEndpoints(existing, source.position, target.position);
         continue;
       }
 
-      const geometry = new THREE.BufferGeometry().setFromPoints([
-        source.position,
-        target.position,
-      ]);
+      const geometry = createLinkGeometry(source.position, target.position);
       const material = new THREE.LineBasicMaterial({
         color: new THREE.Color(link.color),
         transparent: true,
@@ -487,14 +593,31 @@ export class SpaceScene {
     }
   }
 
+  private topologyChanged(activeIds: Set<string>, linkKeys: Set<string>): boolean {
+    if (activeIds.size !== this.nodeTopology.size || linkKeys.size !== this.linkTopology.size) {
+      return true;
+    }
+    for (const id of activeIds) {
+      if (!this.nodeTopology.has(id)) return true;
+    }
+    for (const key of linkKeys) {
+      if (!this.linkTopology.has(key)) return true;
+    }
+    return false;
+  }
+
   updateGraph(data: GraphData): void {
     const activeIds = new Set(data.nodes.map((n) => n.id));
+    const linkKeys = new Set(data.links.map((l) => l.key));
+    const topologyChanged = this.topologyChanged(activeIds, linkKeys);
 
-    for (const [id, state] of this.nodeStates) {
-      if (activeIds.has(id)) continue;
-      this.removeNodeState(state);
-      this.positions.delete(id);
-      this.nodeStates.delete(id);
+    if (topologyChanged) {
+      for (const [id, state] of this.nodeStates) {
+        if (activeIds.has(id)) continue;
+        this.removeNodeState(state);
+        this.positions.delete(id);
+        this.nodeStates.delete(id);
+      }
     }
 
     if (data.nodes.length === 0) {
@@ -510,11 +633,13 @@ export class SpaceScene {
     }
 
     this.syncLinks(data.links);
-    this.updateLabelVisibility(data.nodes.length);
+    this.updateLabelVisibility(data.nodes.length > 0);
+
+    this.nodeTopology = activeIds;
+    this.linkTopology = linkKeys;
   }
 
-  private updateLabelVisibility(nodeCount: number): void {
-    const visible = nodeCount > 0;
+  private updateLabelVisibility(visible: boolean): void {
     for (const state of this.nodeStates.values()) {
       state.label.visible = visible;
     }
@@ -603,7 +728,6 @@ export class SpaceScene {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
-    this.labelRenderer.setSize(width, height);
   }
 
   private updateComets(now: number): void {
@@ -650,16 +774,22 @@ export class SpaceScene {
     const time = this.clock.getElapsedTime();
 
     for (const state of this.nodeStates.values()) {
-      const pulse = now < state.pulseUntil ? 1 + Math.sin(now * 0.02) * 0.15 : 1;
-      const breathe = 1 + Math.sin(time * 1.2 + state.position.x) * 0.03;
-      state.visual.scale.setScalar(pulse * breathe);
+      const isPulsing = now < state.pulseUntil;
+      const isRepo = state.node.kind === 'repo';
 
-      if (state.node.kind === 'repo') {
+      if (isPulsing || isRepo) {
+        const pulse = isPulsing ? 1 + Math.sin(now * 0.02) * 0.15 : 1;
+        const breathe = isRepo ? 1 + Math.sin(time * 1.2 + state.position.x) * 0.03 : 1;
+        state.visual.scale.setScalar(pulse * breathe);
+      } else if (state.visual.scale.x !== 1) {
+        state.visual.scale.setScalar(1);
+      }
+
+      if (isRepo) {
         state.visual.rotation.y = time * 0.4;
         state.visual.rotation.x = Math.sin(time * 0.3) * 0.2;
-      } else {
-        const ring = state.visual.children[state.visual.children.length - 1];
-        ring.rotation.z = time * 0.5;
+      } else if (state.ringMesh) {
+        state.ringMesh.rotation.z = time * 0.5;
       }
     }
 
@@ -677,7 +807,6 @@ export class SpaceScene {
     this.updateNodes(now);
 
     this.renderer.render(this.scene, this.camera);
-    this.labelRenderer.render(this.scene, this.camera);
   };
 
   dispose(): void {
@@ -719,8 +848,9 @@ export class SpaceScene {
       texture.dispose();
     }
 
+    disposeLabelTextures();
+
     this.renderer.dispose();
     this.container.removeChild(this.renderer.domElement);
-    this.container.removeChild(this.labelRenderer.domElement);
   }
 }

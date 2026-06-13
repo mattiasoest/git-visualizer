@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EventView } from '../types/event';
 import { eventColor } from '../types/event';
-import { buildGraph, MAX_GRAPH_EVENTS } from './space/graphBuilder';
+import {
+  buildGraph,
+  graphDataFingerprint,
+  MAX_GRAPH_EVENTS,
+  type GraphData,
+} from './space/graphBuilder';
 import { SpaceScene } from './space/SpaceScene';
 
 interface SpaceVisualizationProps {
@@ -14,6 +19,10 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
   const sceneRef = useRef<SpaceScene | null>(null);
   const seenEventIds = useRef<Set<string>>(new Set());
   const seededRef = useRef(false);
+  const graphDataRef = useRef<GraphData>({ nodes: [], links: [] });
+  const fingerprintRef = useRef('');
+  const pendingGraphRef = useRef<GraphData | null>(null);
+  const rafRef = useRef<number | null>(null);
   const [autoRotating, setAutoRotating] = useState(true);
 
   const filteredEvents = useMemo(() => {
@@ -21,7 +30,16 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
     return filtered.slice(0, MAX_GRAPH_EVENTS);
   }, [events, activeTypes]);
 
-  const graphData = useMemo(() => buildGraph(filteredEvents), [filteredEvents]);
+  const graphData = useMemo(() => {
+    const next = buildGraph(filteredEvents);
+    const fingerprint = graphDataFingerprint(next);
+    if (fingerprint === fingerprintRef.current) {
+      return graphDataRef.current;
+    }
+    fingerprintRef.current = fingerprint;
+    graphDataRef.current = next;
+    return next;
+  }, [filteredEvents]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -40,13 +58,26 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
     return () => {
       unsubscribeAutoRotate();
       observer.disconnect();
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       scene.dispose();
       sceneRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    sceneRef.current?.updateGraph(graphData);
+    pendingGraphRef.current = graphData;
+    if (rafRef.current !== null) return;
+
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const data = pendingGraphRef.current;
+      if (data) {
+        sceneRef.current?.updateGraph(data);
+      }
+    });
   }, [graphData]);
 
   useEffect(() => {
