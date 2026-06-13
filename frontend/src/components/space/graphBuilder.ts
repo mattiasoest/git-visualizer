@@ -12,6 +12,7 @@ export interface GraphNode {
   eventType?: string;
   color?: string;
   parentRepoId?: string;
+  ownerOrg?: string;
   commitMessage?: string;
 }
 
@@ -62,10 +63,12 @@ export function buildGraph(events: EventView[]): GraphData {
     actorNode.eventCount += 1;
     nodes.set(actorId, actorNode);
 
+    const ownerOrg = repoName.includes("/") ? repoName.split("/")[0]! : repoName;
     const repoNode = nodes.get(repoId) ?? {
       id: repoId,
       label: repoName.split("/").pop() ?? repoName,
       kind: "repo" as const,
+      ownerOrg,
       eventCount: 0,
     };
     repoNode.eventCount += 1;
