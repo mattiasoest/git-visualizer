@@ -33,24 +33,26 @@ public class EventBroadcaster {
 
 	public void broadcast(EventView event) {
 		for (SseEmitter emitter : emitters) {
-			try {
-				emitter.send(SseEmitter.event()
-						.name("github-event")
-						.data(event));
-			}
-			catch (IOException ex) {
-				log.debug("Removing dead SSE emitter", ex);
-				emitters.remove(emitter);
-				emitter.completeWithError(ex);
-			}
+			sendToEmitter(emitter, event);
+		}
+	}
+
+	public void sendToEmitter(SseEmitter emitter, EventView event) {
+		try {
+			emitter.send(SseEmitter.event()
+					.name("github-event")
+					.data(event));
+		}
+		catch (IOException ex) {
+			log.debug("Removing dead SSE emitter", ex);
+			emitters.remove(emitter);
+			emitter.completeWithError(ex);
 		}
 	}
 
 	public void sendReplay(SseEmitter emitter, List<EventView> events) throws IOException {
 		for (EventView event : events) {
-			emitter.send(SseEmitter.event()
-					.name("github-event")
-					.data(event));
+			sendToEmitter(emitter, event);
 		}
 	}
 

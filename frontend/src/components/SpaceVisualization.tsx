@@ -10,16 +10,20 @@ import {
 } from './space/graphBuilder';
 import { SpaceScene } from './space/SpaceScene';
 
+function countEventNodes(data: GraphData): number {
+  return data.nodes.filter((node) => node.kind === 'event').length;
+}
+
 interface SpaceVisualizationProps {
   events: EventView[];
   activeTypes: Set<string>;
+  onEventCountChange?: (count: number) => void;
 }
 
-export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationProps) {
+export function SpaceVisualization({ events, activeTypes, onEventCountChange }: SpaceVisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SpaceScene | null>(null);
   const seenEventIds = useRef<Set<string>>(new Set());
-  const seededRef = useRef(false);
   const graphDataRef = useRef<GraphData>({ nodes: [], links: [] });
   const fingerprintRef = useRef('');
   const pendingGraphRef = useRef<GraphData | null>(null);
@@ -105,23 +109,14 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
       const data = pendingGraphRef.current;
       if (data) {
         sceneRef.current?.updateGraph(data);
+        onEventCountChange?.(countEventNodes(data));
       }
     });
-  }, [graphData]);
+  }, [graphData, onEventCountChange]);
 
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
-
-    // Seed the initial snapshot without animating — avoids dozens of comets on load
-    if (!seededRef.current) {
-      if (filteredEvents.length === 0) return;
-      for (const event of filteredEvents) {
-        seenEventIds.current.add(event.id);
-      }
-      seededRef.current = true;
-      return;
-    }
 
     for (const event of filteredEvents) {
       if (seenEventIds.current.has(event.id)) continue;

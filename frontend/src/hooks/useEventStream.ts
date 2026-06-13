@@ -1,5 +1,5 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
-import type { ConnectionStatus, EventView, EventsSnapshotResponse } from '../types/event';
+import type { ConnectionStatus, EventView } from '../types/event';
 
 function mergeEvents(existing: EventView[], incoming: EventView[]): EventView[] {
   const map = new Map<string, EventView>();
@@ -19,7 +19,6 @@ function mergeEvents(existing: EventView[], incoming: EventView[]): EventView[] 
 export function useEventStream() {
   const [events, setEvents] = useState<EventView[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [lastPollAt, setLastPollAt] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const pendingRef = useRef<EventView[]>([]);
@@ -77,29 +76,9 @@ export function useEventStream() {
   }, [handleIncoming]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function bootstrap() {
-      try {
-        const response = await fetch('/api/events?limit=1000');
-        if (!response.ok) {
-          throw new Error(`Bootstrap failed: ${response.status}`);
-        }
-        const data = (await response.json()) as EventsSnapshotResponse;
-        if (!cancelled) {
-          setEvents(data.events);
-          setLastPollAt(data.lastPollAt);
-        }
-      } catch (error) {
-        console.error('Failed to bootstrap events', error);
-      }
-    }
-
-    bootstrap();
     connect();
 
     return () => {
-      cancelled = true;
       if (reconnectTimerRef.current) {
         window.clearTimeout(reconnectTimerRef.current);
       }
@@ -108,5 +87,5 @@ export function useEventStream() {
     };
   }, [connect]);
 
-  return { events, connectionStatus, lastPollAt };
+  return { events, connectionStatus };
 }

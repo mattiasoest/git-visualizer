@@ -16,6 +16,8 @@ github:
     per-page: 100
     min-poll-interval-seconds: 60
     polling-enabled: true
+    gradual-release-enabled: true
+    release-window-seconds: 60
 
 management:
   endpoints:

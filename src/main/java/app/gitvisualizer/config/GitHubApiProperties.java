@@ -14,6 +14,8 @@ public record GitHubApiProperties(
 		@NotBlank String eventsPath,
 		String token,
 		@Min(1) @Max(100) int perPage,
-		@Min(10) int minPollIntervalSeconds
+		@Min(10) int minPollIntervalSeconds,
+		boolean gradualReleaseEnabled,
+		@Min(10) int releaseWindowSeconds
 ) {
 }

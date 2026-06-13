@@ -16,14 +16,17 @@ public class EventStreamService {
 	private final EventRingBuffer ringBuffer;
 	private final EventMapper eventMapper;
 	private final EventBroadcaster broadcaster;
+	private final EventReleaseScheduler releaseScheduler;
 
 	public EventStreamService(
 			EventRingBuffer ringBuffer,
 			EventMapper eventMapper,
-			EventBroadcaster broadcaster) {
+			EventBroadcaster broadcaster,
+			EventReleaseScheduler releaseScheduler) {
 		this.ringBuffer = ringBuffer;
 		this.eventMapper = eventMapper;
 		this.broadcaster = broadcaster;
+		this.releaseScheduler = releaseScheduler;
 	}
 
 	public SseEmitter subscribeToStream(int replay) throws IOException {
@@ -33,7 +36,8 @@ public class EventStreamService {
 		List<EventView> replayEvents = ringBuffer.snapshot(cappedReplay).stream()
 				.map(eventMapper::toView)
 				.toList();
-		broadcaster.sendReplay(emitter, replayEvents);
+		int windowSeconds = releaseScheduler.remainingWindowSeconds();
+		releaseScheduler.replayToEmitter(emitter, replayEvents, windowSeconds);
 
 		return emitter;
 	}

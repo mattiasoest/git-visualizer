@@ -34,7 +34,7 @@ public class AppConfig {
 	@Bean
 	TaskScheduler taskScheduler() {
 		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-		scheduler.setPoolSize(2);
+		scheduler.setPoolSize(4);
 		scheduler.setThreadNamePrefix("github-poller-");
 		scheduler.initialize();
 		return scheduler;

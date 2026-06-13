@@ -5,3 +5,5 @@ github:
     events-path: /events
     per-page: 100
     min-poll-interval-seconds: 60
+    gradual-release-enabled: true
+    release-window-seconds: 60

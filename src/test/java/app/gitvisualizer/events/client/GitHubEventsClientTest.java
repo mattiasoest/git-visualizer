@@ -28,6 +28,8 @@ class GitHubEventsClientTest {
 				"/events",
 				"",
 				100,
+				60,
+				true,
 				60);
 
 		RestClient.Builder builder = RestClient.builder()

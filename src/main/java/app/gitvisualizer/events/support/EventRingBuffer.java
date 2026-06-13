@@ -16,6 +16,13 @@ public class EventRingBuffer {
 
 	private final Deque<GitHubEvent> events = new ArrayDeque<>();
 
+	public synchronized void prepend(GitHubEvent event) {
+		events.addFirst(event);
+		while (events.size() > MAX_SIZE) {
+			events.removeLast();
+		}
+	}
+
 	public synchronized void prependAll(List<GitHubEvent> newEvents) {
 		for (int i = newEvents.size() - 1; i >= 0; i--) {
 			events.addFirst(newEvents.get(i));

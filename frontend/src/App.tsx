@@ -1,19 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { SpaceVisualization } from './components/SpaceVisualization';
 import { useEventStream } from './hooks/useEventStream';
 import { useViewportHeight } from './hooks/useViewportHeight';
 import { FILTERABLE_TYPES, eventColor } from './types/event';
 import './App.css';
 
-function formatPollTime(iso: string | null): string {
-  if (!iso) return 'pending';
-  return new Date(iso).toLocaleTimeString();
-}
-
 export default function App() {
   useViewportHeight();
-  const { events, connectionStatus, lastPollAt } = useEventStream();
+  const { events, connectionStatus } = useEventStream();
   const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(FILTERABLE_TYPES));
+  const [displayedEventCount, setDisplayedEventCount] = useState(0);
+  const handleEventCountChange = useCallback((count: number) => {
+    setDisplayedEventCount(count);
+  }, []);
 
   const toggleType = (type: string) => {
     setActiveTypes((current) => {
@@ -63,15 +62,18 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        <SpaceVisualization events={events} activeTypes={activeTypes} />
+        <SpaceVisualization
+          events={events}
+          activeTypes={activeTypes}
+          onEventCountChange={handleEventCountChange}
+        />
       </main>
 
       <footer className="status-bar">
         <span className={`status-dot ${connectionStatus}`} />
         <span>{statusLabel}</span>
-        <span>{events.length} events</span>
-        <span>Last GitHub poll: {formatPollTime(lastPollAt)}</span>
-        <span className="disclaimer">Data from GitHub public feed; updates every ~60s</span>
+        <span>{displayedEventCount} events</span>
+        <span className="disclaimer">Data from GitHub public feed; events stream continuously</span>
       </footer>
     </div>
   );
