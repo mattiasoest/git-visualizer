@@ -1,4 +1,5 @@
 :root {
+  --app-height: 100dvh;
   color: #d4e4ff;
   background: #020014;
   font-family: 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
@@ -9,27 +10,44 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
 }
 
 .app {
-  min-height: 100vh;
+  height: var(--app-height);
+  width: 100%;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
 }
 
 .app-header {
+  container-type: inline-size;
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid rgba(120, 140, 255, 0.15);
   background: linear-gradient(180deg, rgba(8, 12, 40, 0.95) 0%, rgba(2, 0, 20, 0.98) 100%);
   backdrop-filter: blur(8px);
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.app-header__brand {
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .app-header h1 {
@@ -53,6 +71,23 @@ body {
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+  width: 100%;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 140, 255, 0.35) transparent;
+  padding-bottom: 0.1rem;
+}
+
+.filters::-webkit-scrollbar {
+  height: 4px;
+}
+
+.filters::-webkit-scrollbar-thumb {
+  background: rgba(120, 140, 255, 0.35);
+  border-radius: 999px;
 }
 
 .filter-chip {
@@ -63,6 +98,8 @@ body {
   padding: 0.35rem 0.75rem;
   cursor: pointer;
   font-size: 0.8rem;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
@@ -78,14 +115,19 @@ body {
 
 .app-main {
   min-height: 0;
+  min-width: 0;
   display: flex;
   position: relative;
+  overflow: hidden;
 }
 
 .space-visualization {
   position: relative;
-  flex: 1;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 0%, rgba(60, 30, 120, 0.25) 0%, transparent 55%),
     radial-gradient(ellipse at 80% 90%, rgba(20, 80, 120, 0.15) 0%, transparent 40%),
@@ -94,6 +136,10 @@ body {
 
 .space-visualization canvas {
   display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .space-auto-rotate-btn {
@@ -155,7 +201,7 @@ body {
 .status-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   align-items: center;
   padding: 0.75rem 1.25rem;
   border-top: 1px solid rgba(120, 140, 255, 0.12);
@@ -163,6 +209,7 @@ body {
   font-size: 0.85rem;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
 }
 
 .status-dot {
@@ -192,9 +239,55 @@ body {
   margin-left: auto;
 }
 
+@container (min-width: 700px) {
+  .filters {
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 960px) {
   .disclaimer {
     margin-left: 0;
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.15rem;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+  }
+
+  .filter-chip {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .status-bar {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    gap: 0.35rem 0.75rem;
+  }
+
+  .space-auto-rotate-btn {
+    right: 0.75rem;
+    bottom: 0.75rem;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .space-placeholder {
+    padding: 1rem;
+  }
+
+  .space-placeholder .hint {
+    font-size: 0.8rem;
   }
 }

@@ -264,9 +264,17 @@ export class SpaceScene {
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    this.renderer.setSize(clientWidth, clientHeight);
     this.renderer.setClearColor(0x020014, 1);
     container.appendChild(this.renderer.domElement);
+
+    const canvas = this.renderer.domElement;
+    canvas.style.display = 'block';
+    canvas.style.position = 'absolute';
+    canvas.style.inset = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+
+    this.resize();
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -724,10 +732,15 @@ export class SpaceScene {
     };
   }
 
-  resize(width: number, height: number): void {
+  resize(): void {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    if (width <= 0 || height <= 0) return;
+
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setSize(width, height, false);
   }
 
   private updateComets(now: number): void {

@@ -50,14 +50,42 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
     setAutoRotating(scene.getAutoRotate());
     const unsubscribeAutoRotate = scene.onAutoRotateChange(setAutoRotating);
 
-    const observer = new ResizeObserver(([entry]) => {
-      scene.resize(entry.contentRect.width, entry.contentRect.height);
-    });
+    let resizeRaf: number | null = null;
+
+    const syncSize = () => {
+      scene.resize();
+    };
+
+    const scheduleSync = () => {
+      if (resizeRaf !== null) return;
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = null;
+        syncSize();
+      });
+    };
+
+    syncSize();
+
+    const observer = new ResizeObserver(scheduleSync);
     observer.observe(container);
+
+    const layoutTargets = [container.parentElement, container.parentElement?.parentElement];
+    for (const target of layoutTargets) {
+      if (target) observer.observe(target);
+    }
+
+    window.addEventListener('resize', scheduleSync);
+    window.visualViewport?.addEventListener('resize', scheduleSync);
 
     return () => {
       unsubscribeAutoRotate();
       observer.disconnect();
+      window.removeEventListener('resize', scheduleSync);
+      window.visualViewport?.removeEventListener('resize', scheduleSync);
+      if (resizeRaf !== null) {
+        cancelAnimationFrame(resizeRaf);
+        resizeRaf = null;
+      }
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { SpaceVisualization } from './components/SpaceVisualization';
 import { useEventStream } from './hooks/useEventStream';
+import { useViewportHeight } from './hooks/useViewportHeight';
 import { FILTERABLE_TYPES, eventColor } from './types/event';
 import './App.css';
 
@@ -10,6 +11,7 @@ function formatPollTime(iso: string | null): string {
 }
 
 export default function App() {
+  useViewportHeight();
   const { events, connectionStatus, lastPollAt } = useEventStream();
   const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(FILTERABLE_TYPES));
 
@@ -41,11 +43,11 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div>
+        <div className="app-header__brand">
           <h1>GitHub Cosmos</h1>
           <p className="subtitle">Live public activity across the open-source universe</p>
         </div>
-        <div className="filters">
+        <div className="filters" role="toolbar" aria-label="Event type filters">
           {FILTERABLE_TYPES.map((type) => (
             <button
               key={type}
