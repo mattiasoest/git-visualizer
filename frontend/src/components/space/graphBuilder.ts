@@ -1,8 +1,6 @@
 import type { EventView } from "../../types/event";
 import { eventColor } from "../../types/event";
 
-export const MAX_GRAPH_EVENTS = 1000;
-
 export interface GraphNode {
   id: string;
   label: string;

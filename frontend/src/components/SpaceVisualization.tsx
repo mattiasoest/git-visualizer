@@ -5,7 +5,6 @@ import {
   buildGraph,
   graphDataFingerprint,
   groupedEventNodeId,
-  MAX_GRAPH_EVENTS,
   type GraphData,
 } from './space/graphBuilder';
 import { SpaceScene } from './space/SpaceScene';
@@ -25,8 +24,7 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
   const [autoRotating, setAutoRotating] = useState(true);
 
   const filteredEvents = useMemo(() => {
-    const filtered = events.filter((event) => activeTypes.has(event.type));
-    return filtered.slice(0, MAX_GRAPH_EVENTS);
+    return events.filter((event) => activeTypes.has(event.type));
   }, [events, activeTypes]);
 
   const graphData = useMemo(() => {
@@ -112,7 +110,7 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
       );
     }
 
-    if (seenEventIds.current.size > MAX_GRAPH_EVENTS * 2) {
+    if (seenEventIds.current.size > filteredEvents.length * 2) {
       seenEventIds.current = new Set(filteredEvents.map((event) => event.id));
     }
   }, [graphData, filteredEvents]);
