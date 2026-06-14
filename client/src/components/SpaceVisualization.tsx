@@ -11,10 +11,9 @@ import { SpaceScene } from './space/SpaceScene';
 interface SpaceVisualizationProps {
   events: EventView[];
   activeTypes: Set<string>;
-  onEventCountChange?: (count: number) => void;
 }
 
-export function SpaceVisualization({ events, activeTypes, onEventCountChange }: SpaceVisualizationProps) {
+export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SpaceScene | null>(null);
   const seenEventIds = useRef<Set<string>>(new Set());
@@ -24,10 +23,6 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
   const [labelsVisible, setLabelsVisible] = useState(true);
   const activeTypesRef = useRef(activeTypes);
   activeTypesRef.current = activeTypes;
-
-  const filteredEvents = useMemo(() => {
-    return events.filter((event) => activeTypes.has(event.type));
-  }, [events, activeTypes]);
 
   const graphData = useMemo(() => {
     const next = buildGraph(events);
@@ -137,10 +132,6 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
   useEffect(() => {
     sceneRef.current?.setActiveEventTypes(activeTypes);
   }, [activeTypes]);
-
-  useEffect(() => {
-    onEventCountChange?.(filteredEvents.length);
-  }, [filteredEvents, onEventCountChange]);
 
   return (
     <div ref={containerRef} className="space-visualization">

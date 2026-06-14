@@ -1,18 +1,28 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { SpaceVisualization } from './components/SpaceVisualization';
 import { useEventStream } from './hooks/useEventStream';
 import { useViewportHeight } from './hooks/useViewportHeight';
 import { FILTERABLE_TYPES, eventColor } from './types/event';
 import './App.css';
 
+function eventTypeLabel(type: string): string {
+  return type.replace('Event', '');
+}
+
 export default function App() {
   useViewportHeight();
   const { events, connectionStatus } = useEventStream();
   const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(FILTERABLE_TYPES));
-  const [displayedEventCount, setDisplayedEventCount] = useState(0);
-  const handleEventCountChange = useCallback((count: number) => {
-    setDisplayedEventCount(count);
-  }, []);
+
+  const eventCountsByType = useMemo(() => {
+    const counts = Object.fromEntries(FILTERABLE_TYPES.map((type) => [type, 0]));
+    for (const event of events) {
+      if (event.type in counts) {
+        counts[event.type] += 1;
+      }
+    }
+    return counts;
+  }, [events]);
 
   const toggleType = (type: string) => {
     setActiveTypes((current) => {
@@ -55,24 +65,37 @@ export default function App() {
               style={{ '--chip-color': eventColor(type) } as React.CSSProperties}
               onClick={() => toggleType(type)}
             >
-              {type.replace('Event', '')}
+              {eventTypeLabel(type)}
             </button>
           ))}
         </div>
       </header>
 
       <main className="app-main">
-        <SpaceVisualization
-          events={events}
-          activeTypes={activeTypes}
-          onEventCountChange={handleEventCountChange}
-        />
+        <SpaceVisualization events={events} activeTypes={activeTypes} />
       </main>
 
       <footer className="status-bar">
-        <span className={`status-dot ${connectionStatus}`} />
-        <span>{statusLabel}</span>
-        <span>{displayedEventCount} events</span>
+        <div className="status-bar__left">
+          <span className={`status-dot ${connectionStatus}`} />
+          <span>{statusLabel}</span>
+          <span className="status-bar__total">
+            <span className="status-bar__total-value">{events.length}</span>
+            <span className="status-bar__total-label">Events</span>
+          </span>
+        </div>
+        <span className="status-bar__type-counts" aria-label="Events by type">
+          {FILTERABLE_TYPES.map((type) => (
+            <span
+              key={type}
+              className="status-bar__type-count"
+              style={{ '--type-color': eventColor(type) } as React.CSSProperties}
+            >
+              <span className="status-bar__type-label">{eventTypeLabel(type)}</span>
+              <span className="status-bar__type-value">{eventCountsByType[type]}</span>
+            </span>
+          ))}
+        </span>
       </footer>
     </div>
   );

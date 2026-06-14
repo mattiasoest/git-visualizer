@@ -228,8 +228,9 @@ body {
 .status-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  justify-content: space-between;
   align-items: center;
+  gap: 0.5rem 1rem;
   padding: 0.75rem 1.25rem;
   border-top: 1px solid rgba(120, 140, 255, 0.12);
   background: rgba(4, 6, 24, 0.92);
@@ -237,6 +238,13 @@ body {
   position: relative;
   z-index: 2;
   flex-shrink: 0;
+}
+
+.status-bar__left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
 }
 
 .status-dot {
@@ -259,6 +267,56 @@ body {
 
 .status-dot.disconnected {
   background: #ff7b72;
+}
+
+.status-bar__total {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 500;
+  color: #c9d1d9;
+  min-width: 6.5rem;
+}
+
+.status-bar__total-value {
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-bar__total-label {
+  color: #7a8cb8;
+}
+
+.status-bar__type-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1.25rem;
+  margin-left: auto;
+}
+
+.status-bar__type-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 4.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-bar__type-label {
+  color: #7a8cb8;
+  font-size: 0.8em;
+  flex-shrink: 0;
+}
+
+.status-bar__type-value {
+  color: var(--type-color, #c9d1d9);
+  font-weight: 500;
+  min-width: 3ch;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 @container (min-width: 700px) {
@@ -289,6 +347,18 @@ body {
     padding: 0.5rem 1rem;
     font-size: 0.75rem;
     gap: 0.35rem 0.75rem;
+  }
+
+  .status-bar__total {
+    min-width: 5.75rem;
+  }
+
+  .status-bar__type-counts {
+    gap: 0.35rem 0.85rem;
+  }
+
+  .status-bar__type-count {
+    min-width: 3.85rem;
   }
 
   .space-auto-rotate-btn {
