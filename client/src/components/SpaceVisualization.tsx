@@ -22,6 +22,7 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
   const graphDataRef = useRef<GraphData>({ nodes: [], links: [] });
   const fingerprintRef = useRef('');
   const [autoRotating, setAutoRotating] = useState(true);
+  const [labelsVisible, setLabelsVisible] = useState(true);
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => activeTypes.has(event.type));
@@ -45,7 +46,9 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
     const scene = new SpaceScene(container);
     sceneRef.current = scene;
     setAutoRotating(scene.getAutoRotate());
+    setLabelsVisible(scene.getLabelsVisible());
     const unsubscribeAutoRotate = scene.onAutoRotateChange(setAutoRotating);
+    const unsubscribeLabels = scene.onLabelsVisibleChange(setLabelsVisible);
 
     let resizeRaf: number | null = null;
 
@@ -76,6 +79,7 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
 
     return () => {
       unsubscribeAutoRotate();
+      unsubscribeLabels();
       observer.disconnect();
       window.removeEventListener('resize', scheduleSync);
       window.visualViewport?.removeEventListener('resize', scheduleSync);
@@ -121,6 +125,15 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
 
   return (
     <div ref={containerRef} className="space-visualization">
+      <button
+        type="button"
+        className="space-labels-btn"
+        aria-pressed={labelsVisible}
+        aria-label={labelsVisible ? 'Hide text labels' : 'Show text labels'}
+        onClick={() => sceneRef.current?.setLabelsVisible(!labelsVisible)}
+      >
+        {labelsVisible ? 'Labels ON' : 'Labels OFF'}
+      </button>
       {!autoRotating && (
         <button
           type="button"

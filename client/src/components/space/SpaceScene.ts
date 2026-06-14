@@ -102,6 +102,9 @@ export class SpaceScene {
   private camera: THREE.PerspectiveCamera;
   private controls: OrbitControls;
   private autoRotateListeners = new Set<(enabled: boolean) => void>();
+  private labelVisibilityListeners = new Set<(visible: boolean) => void>();
+  private labelsVisible = true;
+  private graphHasNodes = false;
   private clock = new THREE.Clock();
   private nodeStates = new Map<string, NodeState>();
   private eventParticles: EventParticleLayer;
@@ -793,23 +796,44 @@ export class SpaceScene {
 
     this.syncLinks(data.links);
     this.syncEventParticles(data.nodes.filter((n) => n.kind === 'event'));
-    this.updateLabelVisibility(data.nodes.length > 0);
+    this.graphHasNodes = data.nodes.length > 0;
+    this.applyNodeLabelVisibility();
 
     this.nodeTopology = activeIds;
     this.linkTopology = linkKeys;
   }
 
-  private updateLabelVisibility(visible: boolean): void {
+  private nodeLabelShouldShow(state: NodeState): boolean {
+    if (!this.labelsVisible || !this.graphHasNodes) return false;
+    if (this.isSpawnDeferred(state)) return false;
+    if (state.node.kind === 'event') return Boolean(state.node.label);
+    return true;
+  }
+
+  private applyNodeLabelVisibility(): void {
     for (const state of this.nodeStates.values()) {
-      if (this.isSpawnDeferred(state)) {
-        state.label.visible = false;
-        continue;
+      const shouldShow = this.nodeLabelShouldShow(state);
+      const material = state.label.material as THREE.SpriteMaterial;
+      state.label.visible = shouldShow;
+      if (shouldShow && state.spawnStartTime <= 0) {
+        material.opacity = 1;
       }
-      if (state.node.kind === 'event') {
-        state.label.visible = visible && Boolean(state.node.label);
-      } else {
-        state.label.visible = visible;
+    }
+  }
+
+  private syncIdleNodeLabel(state: NodeState): void {
+    if (this.isSpawnDeferred(state) || state.spawnStartTime > 0) return;
+
+    const material = state.label.material as THREE.SpriteMaterial;
+    if (this.labelsVisible && this.graphHasNodes) {
+      const shouldShow =
+        state.node.kind === 'event' ? Boolean(state.node.label) : true;
+      state.label.visible = shouldShow;
+      if (shouldShow) {
+        material.opacity = 1;
       }
+    } else {
+      state.label.visible = false;
     }
   }
 
@@ -856,7 +880,7 @@ export class SpaceScene {
     state.spawnStartTime = performance.now();
     state.visual.scale.setScalar(0);
     if (state.node.kind !== 'event') {
-      state.label.visible = true;
+      state.label.visible = this.labelsVisible;
       (state.label.material as THREE.SpriteMaterial).opacity = 0;
     }
   }
@@ -869,7 +893,7 @@ export class SpaceScene {
     state.spawnStartTime = performance.now();
     this.eventParticles.beginSpawn(state.node.id);
     if (state.node.label) {
-      state.label.visible = true;
+      state.label.visible = this.labelsVisible;
       (state.label.material as THREE.SpriteMaterial).opacity = 0;
     }
   }
@@ -957,7 +981,7 @@ export class SpaceScene {
     this.cometGroup.add(trail);
 
     let label: THREE.Sprite | undefined;
-    if (commitMessage) {
+    if (commitMessage && this.labelsVisible) {
       label = createCommitLabelSprite(commitMessage, color);
       label.position.copy(from);
       label.position.y += 2.4;
@@ -1012,6 +1036,33 @@ export class SpaceScene {
     this.autoRotateListeners.add(listener);
     return () => {
       this.autoRotateListeners.delete(listener);
+    };
+  }
+
+  getLabelsVisible(): boolean {
+    return this.labelsVisible;
+  }
+
+  setLabelsVisible(visible: boolean): void {
+    if (this.labelsVisible === visible) return;
+    this.labelsVisible = visible;
+    this.applyNodeLabelVisibility();
+    for (const comet of this.comets) {
+      if (!comet.label) continue;
+      comet.label.visible = visible;
+      if (visible) {
+        (comet.label.material as THREE.SpriteMaterial).opacity = 1;
+      }
+    }
+    for (const listener of this.labelVisibilityListeners) {
+      listener(visible);
+    }
+  }
+
+  onLabelsVisibleChange(listener: (visible: boolean) => void): () => void {
+    this.labelVisibilityListeners.add(listener);
+    return () => {
+      this.labelVisibilityListeners.delete(listener);
     };
   }
 
@@ -1111,14 +1162,18 @@ export class SpaceScene {
 
         if (state.spawnStartTime > 0 && this.isNodeSpawning(state, EVENT_SPAWN_MS, now)) {
           const spawnT = Math.min((now - state.spawnStartTime) / EVENT_SPAWN_MS, 1);
-          if (state.node.label) {
+          if (state.node.label && this.labelsVisible) {
             state.label.visible = true;
             const labelT = Math.max(0, (spawnT - 0.4) / 0.6);
             (state.label.material as THREE.SpriteMaterial).opacity = labelT;
+          } else if (!this.labelsVisible) {
+            state.label.visible = false;
           }
           if (spawnT >= 1) {
             state.spawnStartTime = 0;
           }
+        } else {
+          this.syncIdleNodeLabel(state);
         }
         continue;
       }
@@ -1136,11 +1191,18 @@ export class SpaceScene {
         const spawnT = Math.min((now - state.spawnStartTime) / spawnDuration, 1);
         scaleMul = 1 - (1 - spawnT) ** 3;
 
-        (state.label.material as THREE.SpriteMaterial).opacity = scaleMul;
+        if (this.labelsVisible) {
+          state.label.visible = true;
+          (state.label.material as THREE.SpriteMaterial).opacity = scaleMul;
+        } else {
+          state.label.visible = false;
+        }
 
         if (spawnT >= 1) {
           state.spawnStartTime = 0;
         }
+      } else {
+        this.syncIdleNodeLabel(state);
       }
 
       if (!this.isSpawnDeferred(state)) {
