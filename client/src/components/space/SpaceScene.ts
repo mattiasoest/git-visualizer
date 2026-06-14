@@ -1,13 +1,23 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GraphData, GraphLink, GraphNode } from './graphBuilder';
-import { computeHierarchicalPositions } from './clusterLayout';
+import { computeHierarchicalPositions, hashToUnitVector } from './clusterLayout';
 import { EVENT_SPAWN_DEFERRED, EventParticleLayer } from './EventParticleLayer';
 import { createCommitLabelSprite, createLabelSprite, disposeCommitLabel, disposeLabelTextures } from './labelSprite';
 import { softCircleSprite } from './softSprite';
 
 const ACTOR_BASE_RADIUS = 2.2;
-const REPO_BASE_RADIUS = 1.8;
+const REPO_BASE_RADIUS = 2.0;
+const REPO_ACTIVITY_MAX = 20;
+const REPO_VISUAL = {
+  atmosphere: 0,
+  innerGlow: 1,
+  outerShell: 2,
+  outerWire: 3,
+  innerCore: 4,
+  ringA: 5,
+  ringB: 6,
+} as const;
 const EVENT_NODE_BASE_RADIUS = 0.75;
 const COMET_DURATION_MS = 550;
 const COMET_IMPACT_PULSE_MS = 350;
@@ -45,6 +55,17 @@ interface NodeState {
     glow: THREE.Color;
     ring: THREE.Color;
   };
+  repoMaterials?: {
+    atmosphere: THREE.MeshBasicMaterial;
+    innerGlow: THREE.MeshBasicMaterial;
+    outerShell: THREE.MeshBasicMaterial;
+    outerWire: THREE.MeshBasicMaterial;
+    innerCore: THREE.MeshBasicMaterial;
+    ringA: THREE.MeshBasicMaterial;
+    ringB: THREE.MeshBasicMaterial;
+  };
+  repoInnerCore?: THREE.Mesh;
+  repoOrbitRings?: THREE.Mesh[];
   spawnStartTime: number;
   baseRadius: number;
   ringMesh?: THREE.Mesh;
@@ -137,9 +158,11 @@ export class SpaceScene {
   private readonly actorCoreGeo = new THREE.SphereGeometry(1, 16, 16);
   private readonly actorGlowGeo = new THREE.SphereGeometry(1, 10, 10);
   private readonly actorRingGeo = new THREE.RingGeometry(1, 1.1, 24);
-  private readonly repoCrystalGeo = new THREE.IcosahedronGeometry(1, 0);
-  private readonly repoOrbitGeo = new THREE.TorusGeometry(1, 0.033, 6, 32);
-  private readonly repoGlowGeo = new THREE.SphereGeometry(1, 8, 8);
+  private readonly repoOuterCrystalGeo = new THREE.IcosahedronGeometry(1, 1);
+  private readonly repoInnerCoreGeo = new THREE.OctahedronGeometry(1, 0);
+  private readonly repoOrbitGeo = new THREE.TorusGeometry(1, 0.028, 6, 40);
+  private readonly repoOrbitGeoB = new THREE.TorusGeometry(1, 0.02, 6, 36);
+  private readonly repoGlowGeo = new THREE.SphereGeometry(1, 12, 12);
   private readonly cometGeo = new THREE.SphereGeometry(0.35, 8, 8);
 
   private readonly actorCoreMat = new THREE.MeshBasicMaterial({ color: 0x4a9eff });
@@ -158,18 +181,52 @@ export class SpaceScene {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  private readonly repoCrystalMat = new THREE.MeshBasicMaterial({ color: 0x3fb950 });
-  private readonly repoOrbitMat = new THREE.MeshBasicMaterial({
-    color: 0x56d364,
+  private readonly repoAtmosphereMat = new THREE.MeshBasicMaterial({
+    color: 0x1a6b45,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.1,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  private readonly repoGlowMat = new THREE.MeshBasicMaterial({
-    color: 0x238636,
+  private readonly repoInnerGlowMat = new THREE.MeshBasicMaterial({
+    color: 0x3dd68c,
     transparent: true,
-    opacity: 0.08,
+    opacity: 0.22,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  private readonly repoOuterShellMat = new THREE.MeshBasicMaterial({
+    color: 0x2dd4a8,
+    transparent: true,
+    opacity: 0.38,
+    depthWrite: false,
+  });
+  private readonly repoOuterWireMat = new THREE.MeshBasicMaterial({
+    color: 0x7dffc8,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.55,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  private readonly repoInnerCoreMat = new THREE.MeshBasicMaterial({
+    color: 0xc8ffe8,
+    transparent: true,
+    opacity: 0.95,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  private readonly repoOrbitMat = new THREE.MeshBasicMaterial({
+    color: 0x56ffd9,
+    transparent: true,
+    opacity: 0.62,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  private readonly repoOrbitMatB = new THREE.MeshBasicMaterial({
+    color: 0x3fb950,
+    transparent: true,
+    opacity: 0.38,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
@@ -379,7 +436,94 @@ export class SpaceScene {
   }
 
   private repoRadius(eventCount: number): number {
-    return REPO_BASE_RADIUS + Math.min(eventCount, 10) * 0.1;
+    const clamped = Math.min(Math.max(eventCount, 1), REPO_ACTIVITY_MAX);
+    return REPO_BASE_RADIUS + (clamped - 1) * (1.2 / (REPO_ACTIVITY_MAX - 1));
+  }
+
+  /** Maps repo event count to 0..1 where 1 event = 0 and 20 events = 1. */
+  private repoActivityT(eventCount: number): number {
+    const clamped = Math.min(Math.max(eventCount, 1), REPO_ACTIVITY_MAX);
+    return (clamped - 1) / (REPO_ACTIVITY_MAX - 1);
+  }
+
+  private repoLayerColor(
+    hue: number,
+    saturation: number,
+    lightnessAtOne: number,
+    lightnessAtMax: number,
+    t: number,
+  ): THREE.Color {
+    return new THREE.Color().setHSL(hue, saturation, lightnessAtOne + (lightnessAtMax - lightnessAtOne) * t);
+  }
+
+  private repoActivityColors(
+    eventCount: number,
+    repoId: string,
+  ): {
+    atmosphere: THREE.Color;
+    innerGlow: THREE.Color;
+    outerShell: THREE.Color;
+    outerWire: THREE.Color;
+    innerCore: THREE.Color;
+    ringA: THREE.Color;
+    ringB: THREE.Color;
+  } {
+    const t = this.repoActivityT(eventCount);
+    const hueShift = hashToUnitVector(repoId).x * 0.07;
+    const shellHue = 0.44 + hueShift;
+    const coreHue = 0.48 + hueShift;
+
+    return {
+      atmosphere: this.repoLayerColor(shellHue, 0.55, 0.18, 0.07, t),
+      innerGlow: this.repoLayerColor(coreHue, 0.75, 0.42, 0.16, t),
+      outerShell: this.repoLayerColor(shellHue, 0.7, 0.38, 0.13, t),
+      outerWire: this.repoLayerColor(coreHue, 0.85, 0.62, 0.24, t),
+      innerCore: this.repoLayerColor(coreHue + 0.02, 0.9, 0.78, 0.2, t),
+      ringA: this.repoLayerColor(coreHue + 0.04, 0.9, 0.58, 0.18, t),
+      ringB: this.repoLayerColor(shellHue + 0.03, 0.65, 0.45, 0.11, t),
+    };
+  }
+
+  private repoMaterialOpacities(): {
+    atmosphere: number;
+    innerGlow: number;
+    outerShell: number;
+    outerWire: number;
+    innerCore: number;
+    ringA: number;
+    ringB: number;
+  } {
+    return {
+      atmosphere: 0.08,
+      innerGlow: 0.18,
+      outerShell: 0.32,
+      outerWire: 0.45,
+      innerCore: 0.88,
+      ringA: 0.5,
+      ringB: 0.28,
+    };
+  }
+
+  private applyRepoColors(state: NodeState, eventCount: number): void {
+    if (!state.repoMaterials) return;
+
+    const colors = this.repoActivityColors(eventCount, state.node.id);
+    state.repoMaterials.atmosphere.color.copy(colors.atmosphere);
+    state.repoMaterials.innerGlow.color.copy(colors.innerGlow);
+    state.repoMaterials.outerShell.color.copy(colors.outerShell);
+    state.repoMaterials.outerWire.color.copy(colors.outerWire);
+    state.repoMaterials.innerCore.color.copy(colors.innerCore);
+    state.repoMaterials.ringA.color.copy(colors.ringA);
+    state.repoMaterials.ringB.color.copy(colors.ringB);
+
+    const opacities = this.repoMaterialOpacities();
+    state.repoMaterials.atmosphere.opacity = opacities.atmosphere;
+    state.repoMaterials.innerGlow.opacity = opacities.innerGlow;
+    state.repoMaterials.outerShell.opacity = opacities.outerShell;
+    state.repoMaterials.outerWire.opacity = opacities.outerWire;
+    state.repoMaterials.innerCore.opacity = opacities.innerCore;
+    state.repoMaterials.ringA.opacity = opacities.ringA;
+    state.repoMaterials.ringB.opacity = opacities.ringB;
   }
 
   private eventNodeRadius(): number {
@@ -400,9 +544,13 @@ export class SpaceScene {
   }
 
   private applyRepoScales(visual: THREE.Group, scale: number): void {
-    visual.children[0].scale.setScalar(scale);
-    visual.children[1].scale.setScalar(scale * 1.8);
-    visual.children[2].scale.setScalar(scale * 1.6);
+    visual.children[REPO_VISUAL.atmosphere].scale.setScalar(scale * 2.6);
+    visual.children[REPO_VISUAL.innerGlow].scale.setScalar(scale * 1.25);
+    visual.children[REPO_VISUAL.outerShell].scale.setScalar(scale);
+    visual.children[REPO_VISUAL.outerWire].scale.setScalar(scale * 1.04);
+    visual.children[REPO_VISUAL.innerCore].scale.setScalar(scale * 0.5);
+    visual.children[REPO_VISUAL.ringA].scale.setScalar(scale * 2.15);
+    visual.children[REPO_VISUAL.ringB].scale.setScalar(scale * 2.65);
   }
 
   private createActorMesh(node: GraphNode): {
@@ -468,25 +616,100 @@ export class SpaceScene {
     };
   }
 
-  private createRepoMesh(node: GraphNode): { group: THREE.Group; baseRadius: number } {
+  private createRepoMesh(node: GraphNode): {
+    group: THREE.Group;
+    baseRadius: number;
+    innerCore: THREE.Mesh;
+    orbitRings: THREE.Mesh[];
+    materials: NonNullable<NodeState['repoMaterials']>;
+  } {
     const group = new THREE.Group();
     const scale = this.repoRadius(node.eventCount);
+    const colors = this.repoActivityColors(node.eventCount, node.id);
+    const opacities = this.repoMaterialOpacities();
 
-    const crystal = new THREE.Mesh(this.repoCrystalGeo, this.repoCrystalMat);
-    crystal.scale.setScalar(scale);
-    group.add(crystal);
+    const atmosphereMat = this.repoAtmosphereMat.clone();
+    atmosphereMat.color.copy(colors.atmosphere);
+    atmosphereMat.opacity = opacities.atmosphere;
+    const atmosphere = new THREE.Mesh(this.repoGlowGeo, atmosphereMat);
+    atmosphere.scale.setScalar(scale * 2.6);
+    group.add(atmosphere);
 
-    const orbit = new THREE.Mesh(this.repoOrbitGeo, this.repoOrbitMat);
-    orbit.scale.setScalar(scale * 1.8);
-    orbit.rotation.x = Math.PI / 3;
-    orbit.rotation.y = 0.5;
-    group.add(orbit);
+    const innerGlowMat = this.repoInnerGlowMat.clone();
+    innerGlowMat.color.copy(colors.innerGlow);
+    innerGlowMat.opacity = opacities.innerGlow;
+    const innerGlow = new THREE.Mesh(this.repoGlowGeo, innerGlowMat);
+    innerGlow.scale.setScalar(scale * 1.25);
+    group.add(innerGlow);
 
-    const glow = new THREE.Mesh(this.repoGlowGeo, this.repoGlowMat);
-    glow.scale.setScalar(scale * 1.6);
-    group.add(glow);
+    const outerShellMat = this.repoOuterShellMat.clone();
+    outerShellMat.color.copy(colors.outerShell);
+    outerShellMat.opacity = opacities.outerShell;
+    const outerShell = new THREE.Mesh(this.repoOuterCrystalGeo, outerShellMat);
+    outerShell.scale.setScalar(scale);
+    group.add(outerShell);
 
-    return { group, baseRadius: scale };
+    const outerWireMat = this.repoOuterWireMat.clone();
+    outerWireMat.color.copy(colors.outerWire);
+    outerWireMat.opacity = opacities.outerWire;
+    const outerWire = new THREE.Mesh(this.repoOuterCrystalGeo, outerWireMat);
+    outerWire.scale.setScalar(scale * 1.04);
+    group.add(outerWire);
+
+    const innerCoreMat = this.repoInnerCoreMat.clone();
+    innerCoreMat.color.copy(colors.innerCore);
+    innerCoreMat.opacity = opacities.innerCore;
+    const innerCore = new THREE.Mesh(this.repoInnerCoreGeo, innerCoreMat);
+    innerCore.scale.setScalar(scale * 0.5);
+    group.add(innerCore);
+
+    const ringAMat = this.repoOrbitMat.clone();
+    ringAMat.color.copy(colors.ringA);
+    ringAMat.opacity = opacities.ringA;
+    const ringA = new THREE.Mesh(this.repoOrbitGeo, ringAMat);
+    ringA.scale.setScalar(scale * 2.15);
+    ringA.rotation.x = Math.PI / 3;
+    ringA.rotation.y = 0.45;
+    group.add(ringA);
+
+    const ringBMat = this.repoOrbitMatB.clone();
+    ringBMat.color.copy(colors.ringB);
+    ringBMat.opacity = opacities.ringB;
+    const ringB = new THREE.Mesh(this.repoOrbitGeoB, ringBMat);
+    ringB.scale.setScalar(scale * 2.65);
+    ringB.rotation.x = Math.PI / 2.15;
+    ringB.rotation.z = 0.75;
+    group.add(ringB);
+
+    return {
+      group,
+      baseRadius: scale,
+      innerCore,
+      orbitRings: [ringA, ringB],
+      materials: {
+        atmosphere: atmosphereMat,
+        innerGlow: innerGlowMat,
+        outerShell: outerShellMat,
+        outerWire: outerWireMat,
+        innerCore: innerCoreMat,
+        ringA: ringAMat,
+        ringB: ringBMat,
+      },
+    };
+  }
+
+  private disposeRepoMaterials(state: NodeState): void {
+    if (!state.repoMaterials) return;
+    state.repoMaterials.atmosphere.dispose();
+    state.repoMaterials.innerGlow.dispose();
+    state.repoMaterials.outerShell.dispose();
+    state.repoMaterials.outerWire.dispose();
+    state.repoMaterials.innerCore.dispose();
+    state.repoMaterials.ringA.dispose();
+    state.repoMaterials.ringB.dispose();
+    state.repoMaterials = undefined;
+    state.repoInnerCore = undefined;
+    state.repoOrbitRings = undefined;
   }
 
   private disposeNodeLabel(state: NodeState): void {
@@ -555,6 +778,8 @@ export class SpaceScene {
   private removeNodeState(state: NodeState): void {
     if (state.node.kind === 'actor') {
       this.disposeActorMaterials(state);
+    } else if (state.node.kind === 'repo') {
+      this.disposeRepoMaterials(state);
     }
     this.disposeNodeLabel(state);
     this.scene.remove(state.anchor);
@@ -590,6 +815,7 @@ export class SpaceScene {
           const scale = this.repoRadius(node.eventCount);
           existing.baseRadius = scale;
           this.applyRepoScales(existing.visual, scale);
+          this.applyRepoColors(existing, node.eventCount);
         }
       }
 
@@ -612,6 +838,9 @@ export class SpaceScene {
     let ringMesh: THREE.Mesh | undefined;
     let actorMaterials: NodeState['actorMaterials'];
     let actorBaseColors: NodeState['actorBaseColors'];
+    let repoMaterials: NodeState['repoMaterials'];
+    let repoInnerCore: NodeState['repoInnerCore'];
+    let repoOrbitRings: NodeState['repoOrbitRings'];
 
     if (node.kind === 'actor') {
       const actorMesh = this.createActorMesh(node);
@@ -624,6 +853,9 @@ export class SpaceScene {
       const repoMesh = this.createRepoMesh(node);
       visual = repoMesh.group;
       baseRadius = repoMesh.baseRadius;
+      repoMaterials = repoMesh.materials;
+      repoInnerCore = repoMesh.innerCore;
+      repoOrbitRings = repoMesh.orbitRings;
     } else {
       visual = new THREE.Group();
       baseRadius = this.eventNodeRadius();
@@ -667,6 +899,9 @@ export class SpaceScene {
       tintUntil: 0,
       actorMaterials,
       actorBaseColors,
+      repoMaterials,
+      repoInnerCore,
+      repoOrbitRings,
       spawnStartTime,
       baseRadius,
       ringMesh,
@@ -1222,8 +1457,19 @@ export class SpaceScene {
       }
 
       if (isRepo) {
-        state.visual.rotation.y = time * 0.4;
-        state.visual.rotation.x = Math.sin(time * 0.3) * 0.2;
+        state.visual.rotation.y = time * 0.32;
+        state.visual.rotation.x = Math.sin(time * 0.28) * 0.18;
+        state.visual.rotation.z = Math.cos(time * 0.22 + state.position.z * 0.01) * 0.08;
+
+        if (state.repoInnerCore) {
+          state.repoInnerCore.rotation.y = -time * 1.1;
+          state.repoInnerCore.rotation.x = time * 0.75;
+        }
+
+        if (state.repoOrbitRings) {
+          state.repoOrbitRings[0].rotation.z = time * 0.85;
+          state.repoOrbitRings[1].rotation.y = -time * 0.62;
+        }
       } else if (state.ringMesh) {
         state.ringMesh.rotation.z = time * 0.5;
       }
@@ -1279,8 +1525,10 @@ export class SpaceScene {
     this.actorCoreGeo.dispose();
     this.actorGlowGeo.dispose();
     this.actorRingGeo.dispose();
-    this.repoCrystalGeo.dispose();
+    this.repoOuterCrystalGeo.dispose();
+    this.repoInnerCoreGeo.dispose();
     this.repoOrbitGeo.dispose();
+    this.repoOrbitGeoB.dispose();
     this.repoGlowGeo.dispose();
     this.cometGeo.dispose();
 
