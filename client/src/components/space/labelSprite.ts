@@ -174,6 +174,87 @@ export function disposeCommitLabel(sprite: THREE.Sprite): void {
   material.dispose();
 }
 
+const EVENT_LABEL_HEIGHT = 1.05;
+const MAX_EVENT_LABEL_CHARS = 48;
+
+function truncateEventText(text: string): string {
+  const firstLine = text.split('\n')[0].trim();
+  if (firstLine.length <= MAX_EVENT_LABEL_CHARS) return firstLine;
+  return `${firstLine.slice(0, MAX_EVENT_LABEL_CHARS - 1)}…`;
+}
+
+export function createEventLabelSprite(
+  actorLogin: string,
+  eventLabel: string,
+  accentColor: string,
+): THREE.Sprite {
+  const displayEvent = truncateEventText(eventLabel);
+  const dpr = 2;
+  const actorFontSize = 9;
+  const eventFontSize = 10;
+  const paddingX = 8;
+  const paddingY = 4;
+  const lineGap = 2;
+  const borderRadius = 4;
+
+  const measureCanvas = document.createElement('canvas');
+  const measureCtx = measureCanvas.getContext('2d')!;
+  measureCtx.font = `600 ${actorFontSize}px system-ui, -apple-system, sans-serif`;
+  const actorWidth = Math.ceil(measureCtx.measureText(actorLogin).width);
+  measureCtx.font = `italic 500 ${eventFontSize}px system-ui, -apple-system, sans-serif`;
+  const eventWidth = Math.ceil(measureCtx.measureText(displayEvent).width);
+  const logicalWidth = Math.min(Math.max(actorWidth, eventWidth) + paddingX * 2, 280);
+  const logicalHeight = actorFontSize + lineGap + eventFontSize + paddingY * 2 + 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = logicalWidth * dpr;
+  canvas.height = logicalHeight * dpr;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(dpr, dpr);
+
+  ctx.fillStyle = hexToRgba(accentColor, 0.14);
+  ctx.strokeStyle = hexToRgba(accentColor, 0.55);
+  ctx.lineWidth = 1;
+  roundRect(ctx, 0.5, 0.5, logicalWidth - 1, logicalHeight - 1, borderRadius);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+  ctx.shadowBlur = 4;
+  ctx.textBaseline = 'top';
+
+  ctx.font = `600 ${actorFontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = '#8ee4a0';
+  ctx.fillText(actorLogin, paddingX, paddingY, logicalWidth - paddingX * 2);
+
+  ctx.font = `italic 500 ${eventFontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = '#f0e8e8';
+  ctx.fillText(
+    displayEvent,
+    paddingX,
+    paddingY + actorFontSize + lineGap,
+    logicalWidth - paddingX * 2,
+  );
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const sprite = new THREE.Sprite(material);
+  const aspect = canvas.width / canvas.height;
+  sprite.scale.set(EVENT_LABEL_HEIGHT * aspect, EVENT_LABEL_HEIGHT, 1);
+  return sprite;
+}
+
+export function disposeEventLabel(sprite: THREE.Sprite): void {
+  disposeCommitLabel(sprite);
+}
+
 export function disposeLabelTextures(): void {
   for (const texture of textureCache.values()) {
     texture.dispose();

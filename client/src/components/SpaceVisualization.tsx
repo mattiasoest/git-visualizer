@@ -4,7 +4,6 @@ import { eventColor } from '../types/event';
 import {
   buildGraph,
   graphDataFingerprint,
-  groupedEventNodeId,
   type GraphData,
 } from './space/graphBuilder';
 import { SpaceScene } from './space/SpaceScene';
@@ -106,12 +105,18 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
       const repoName = event.repo?.name;
       if (!actorLogin || !repoName) continue;
 
-      scene.enqueueComet(
-        `actor:${actorLogin}`,
-        groupedEventNodeId(event.type, repoName),
-        eventColor(event.type),
-        event.type === 'PushEvent' ? event.commitMessage ?? undefined : undefined,
-      );
+      const eventLabel =
+        event.type === 'PushEvent' && event.commitMessage
+          ? event.commitMessage
+          : event.summary;
+
+      scene.enqueueEventFlight({
+        eventId: event.id,
+        repoId: `repo:${repoName}`,
+        actorLogin,
+        eventColor: eventColor(event.type),
+        eventLabel,
+      });
     }
 
     if (seenEventIds.current.size > filteredEvents.length * 2) {
@@ -149,8 +154,8 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
           <div className="space-placeholder__ring" />
           <p>Scanning the cosmos for GitHub activity...</p>
           <p className="hint">
-            Developers appear as stars, repositories as crystal worlds — activity streams in as comets
-            and merges into each repo&apos;s event satellite.
+            Repositories appear as crystal worlds — green user particles launch from each world,
+            morph into activity, and settle as orbiting satellites with developer names.
           </p>
         </div>
       )}
