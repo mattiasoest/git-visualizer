@@ -1,5 +1,5 @@
-import type { EventView } from "../../types/event";
-import { eventColor } from "../../types/event";
+import type { EventView } from '../../types/event';
+import { eventColor } from '../../types/event';
 
 export interface GraphNode {
   id: string;

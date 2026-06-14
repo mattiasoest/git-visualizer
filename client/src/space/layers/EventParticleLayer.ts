@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { eventOrbitOffset, resolveEventOrbitPhaseOffset } from './clusterLayout';
+import { eventOrbitOffset, resolveEventOrbitPhaseOffset } from '../utils/clusterLayout';
 import {
   createSizedPointsMaterial,
   type SizedPointsMaterial,
-} from './sizedPointMaterial';
+} from '../utils/sizedPointMaterial';
 
 const EVENT_NODE_BASE_RADIUS = 0.75;
 const EVENT_SPAWN_MS = 1600;

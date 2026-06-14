@@ -5,8 +5,8 @@ import {
   buildGraph,
   graphDataFingerprint,
   type GraphData,
-} from './space/graphBuilder';
-import { SpaceScene } from './space/SpaceScene';
+} from '../space/utils/graphBuilder';
+import { SpaceScene } from '../space/SpaceScene';
 
 interface SpaceVisualizationProps {
   events: EventView[];
