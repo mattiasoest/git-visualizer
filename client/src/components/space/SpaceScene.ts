@@ -243,7 +243,7 @@ export class SpaceScene {
     this.starfield = this.createStarfield(2500);
     this.scene.add(this.starfield);
 
-    this.nebula = this.createNebula(120);
+    this.nebula = this.createNebula(60);
     this.scene.add(this.nebula);
 
     this.scene.add(this.linkGroup);
