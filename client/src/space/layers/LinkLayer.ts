@@ -34,7 +34,9 @@ export class LinkLayer {
         this.nodes.isEventEndpointVisible(link.sourceId);
       const existing = this.linkLines.get(link.key);
       if (existing) {
-        (existing.material as THREE.LineBasicMaterial).opacity = visible ? baseOpacity : 0;
+        const material = existing.material as THREE.LineBasicMaterial;
+        material.depthWrite = false;
+        material.opacity = visible ? baseOpacity : 0;
         updateLinkEndpoints(existing, sourcePos, targetPos);
         continue;
       }
@@ -45,6 +47,7 @@ export class LinkLayer {
         transparent: true,
         opacity: visible ? baseOpacity : 0,
         blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
       const line = new THREE.Line(geometry, material);
       this.group.add(line);

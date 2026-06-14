@@ -109,6 +109,7 @@ export class EventParticleLayer {
         opacity: 0.95,
         sizeAttenuation: true,
         depthWrite: false,
+        depthTest: false,
         alphaTest: 0.01,
       }),
     );
@@ -123,6 +124,7 @@ export class EventParticleLayer {
         opacity: 0.35,
         sizeAttenuation: true,
         depthWrite: false,
+        depthTest: false,
         blending: THREE.AdditiveBlending,
         alphaTest: 0.01,
       }),
@@ -210,6 +212,10 @@ export class EventParticleLayer {
 
   isSuppressed(id: string): boolean {
     return this.states.get(id)?.suppressed ?? false;
+  }
+
+  isHidden(id: string): boolean {
+    return this.hiddenIds.has(id);
   }
 
   getSizeScale(id: string): number {

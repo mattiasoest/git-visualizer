@@ -49,6 +49,7 @@ export function createSizedPointsMaterial(
     `,
     transparent: true,
     depthWrite: options.depthWrite ?? false,
+    depthTest: false,
     blending: options.blending ?? THREE.NormalBlending,
   }) as SizedPointsMaterial;
 }

@@ -69,6 +69,8 @@ export class GraphNodeLayer {
   isEventEndpointVisible(id: string): boolean {
     if (!id.startsWith('event:')) return true;
     if (this.eventParticles.isSuppressed(id)) return false;
+    if (this.eventParticles.isHidden(id)) return false;
+    if (this.eventParticles.isSpawnDeferred(id)) return false;
     const state = this.nodeStates.get(id);
     return state ? state.anchor.visible : false;
   }
