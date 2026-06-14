@@ -123,6 +123,7 @@ export class SpaceScene {
   private controls: OrbitControls;
   private autoRotateListeners = new Set<(enabled: boolean) => void>();
   private labelVisibilityListeners = new Set<(visible: boolean) => void>();
+  private activeEventTypes = new Set<string>();
   private labelsVisible = true;
   private graphHasNodes = false;
   private clock = new THREE.Clock();
@@ -810,7 +811,9 @@ export class SpaceScene {
 
       const baseOpacity = 0.22 + Math.min(link.weight, 4) * 0.03;
       this.linkBaseOpacity.set(link.key, baseOpacity);
-      const visible = !this.isEndpointSpawnDeferred(link.sourceId);
+      const visible =
+        !this.isEndpointSpawnDeferred(link.sourceId) &&
+        this.isEventEndpointVisible(link.sourceId);
       const existing = this.linkLines.get(link.key);
       if (existing) {
         (existing.material as THREE.LineBasicMaterial).opacity = visible ? baseOpacity : 0;
@@ -881,6 +884,7 @@ export class SpaceScene {
 
   private nodeLabelShouldShow(state: NodeState): boolean {
     if (!this.labelsVisible || !this.graphHasNodes) return false;
+    if (!state.anchor.visible) return false;
     if (this.isSpawnDeferred(state)) return false;
     if (state.node.kind === 'event') {
       return Boolean(state.node.label && state.node.actorLogin);
@@ -955,6 +959,127 @@ export class SpaceScene {
   enqueueEventFlight(payload: EventFlightPayload): void {
     this.flightQueue.push({ ...payload });
     this.processFlightQueue();
+  }
+
+  setActiveEventTypes(types: Set<string>): void {
+    this.activeEventTypes = types;
+    this.applyEventTypeVisibility(true);
+  }
+
+  syncEventTypeFilterVisibility(): void {
+    this.applyEventTypeVisibility(false);
+  }
+
+  instantRevealEvent(eventId: string): void {
+    const targetId = eventNodeId(eventId);
+    const target = this.nodeStates.get(targetId);
+    if (!target || target.node.kind !== 'event') return;
+
+    const repoId = target.node.parentRepoId;
+    if (repoId) {
+      const repo = this.nodeStates.get(repoId);
+      if (repo) this.completeNodeSpawn(repo);
+    }
+
+    this.completeNodeSpawn(target);
+    this.eventParticles.completeSpawn(target.node.id);
+    this.syncIdleNodeLabel(target);
+  }
+
+  private isEventTypeActive(node: GraphNode): boolean {
+    if (node.kind !== 'event') return true;
+    return node.eventType ? this.activeEventTypes.has(node.eventType) : true;
+  }
+
+  private repoHasVisibleEvents(repoId: string): boolean {
+    for (const state of this.nodeStates.values()) {
+      if (
+        state.node.kind === 'event' &&
+        state.node.parentRepoId === repoId &&
+        this.isEventTypeActive(state.node)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private completeNodeSpawn(state: NodeState): void {
+    if (this.isSpawnDeferred(state)) {
+      state.spawnStartTime = 0;
+      state.visual.scale.setScalar(1);
+      if (state.node.kind !== 'event' && this.labelsVisible) {
+        state.label.visible = true;
+        (state.label.material as THREE.SpriteMaterial).opacity = 1;
+      }
+    } else if (state.spawnStartTime > 0) {
+      state.spawnStartTime = 0;
+      state.visual.scale.setScalar(1);
+    }
+  }
+
+  private applyEventTypeVisibility(instantOnShow: boolean): void {
+    const hiddenParticleIds = new Set<string>();
+
+    for (const state of this.nodeStates.values()) {
+      if (state.node.kind !== 'event') continue;
+
+      const visible = this.isEventTypeActive(state.node);
+      if (visible) {
+        if (instantOnShow) {
+          this.completeNodeSpawn(state);
+          this.eventParticles.completeSpawn(state.node.id);
+        }
+        state.anchor.visible = true;
+        if (instantOnShow) {
+          this.syncIdleNodeLabel(state);
+        }
+      } else {
+        state.anchor.visible = false;
+        state.label.visible = false;
+        hiddenParticleIds.add(state.node.id);
+      }
+    }
+
+    for (const state of this.nodeStates.values()) {
+      if (state.node.kind !== 'repo') continue;
+      const visible = this.repoHasVisibleEvents(state.node.id);
+      if (visible) {
+        if (instantOnShow) {
+          this.completeNodeSpawn(state);
+        }
+        state.anchor.visible = true;
+        if (instantOnShow) {
+          this.syncIdleNodeLabel(state);
+        }
+      } else {
+        state.anchor.visible = false;
+        state.label.visible = false;
+      }
+    }
+
+    this.eventParticles.setHidden(hiddenParticleIds);
+    this.applyLinkVisibility();
+  }
+
+  private applyLinkVisibility(): void {
+    for (const [key, line] of this.linkLines) {
+      const arrowIdx = key.indexOf('->');
+      if (arrowIdx < 0) continue;
+      const sourceId = key.slice(0, arrowIdx);
+      const baseOpacity = this.linkBaseOpacity.get(key) ?? 0;
+      const typeVisible =
+        !sourceId.startsWith('event:') || this.isEventEndpointVisible(sourceId);
+      const spawnVisible = !this.isEndpointSpawnDeferred(sourceId);
+      (line.material as THREE.LineBasicMaterial).opacity =
+        typeVisible && spawnVisible ? baseOpacity : 0;
+    }
+  }
+
+  private isEventEndpointVisible(id: string): boolean {
+    if (!id.startsWith('event:')) return true;
+    const state = this.nodeStates.get(id);
+    return state ? state.anchor.visible : false;
   }
 
   private isSpawnDeferred(state: NodeState): boolean {
@@ -1219,7 +1344,8 @@ export class SpaceScene {
       updateLinkEndpoints(line, sourcePos, targetPos);
 
       const baseOpacity = this.linkBaseOpacity.get(key) ?? 0;
-      const visible = !this.isEndpointSpawnDeferred(sourceId);
+      const visible =
+        !this.isEndpointSpawnDeferred(sourceId) && this.isEventEndpointVisible(sourceId);
       (line.material as THREE.LineBasicMaterial).opacity = visible ? baseOpacity : 0;
     }
   }
@@ -1230,6 +1356,11 @@ export class SpaceScene {
 
     for (const state of this.nodeStates.values()) {
       if (state.node.kind === 'event') {
+        if (!state.anchor.visible) {
+          state.label.visible = false;
+          continue;
+        }
+
         const pos = this.eventParticles.getPosition(state.node.id);
         if (pos) {
           state.anchor.position.copy(pos);
@@ -1260,6 +1391,11 @@ export class SpaceScene {
       }
 
       const isRepo = state.node.kind === 'repo';
+
+      if (!state.anchor.visible) {
+        state.label.visible = false;
+        continue;
+      }
 
       let scaleMul = 1;
 

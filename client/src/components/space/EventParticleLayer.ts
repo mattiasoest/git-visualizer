@@ -33,6 +33,7 @@ export class EventParticleLayer {
 
   private states = new Map<string, EventParticleState>();
   private order: string[] = [];
+  private hiddenIds = new Set<string>();
   private worldPositions = new Map<string, THREE.Vector3>();
   private parentPositions = new Map<string, THREE.Vector3>();
   private readonly scratchColor = new THREE.Color();
@@ -132,6 +133,15 @@ export class EventParticleLayer {
     if (state) state.pulseUntil = until;
   }
 
+  completeSpawn(id: string): void {
+    const state = this.states.get(id);
+    if (state) state.spawnStartTime = 0;
+  }
+
+  setHidden(ids: Set<string>): void {
+    this.hiddenIds = ids;
+  }
+
   update(time: number, now: number): void {
     const count = this.order.length;
     if (count === 0) {
@@ -152,7 +162,7 @@ export class EventParticleLayer {
       if (!worldPos) continue;
 
       const deferred = state.spawnStartTime === EVENT_SPAWN_DEFERRED;
-      if (deferred) continue;
+      if (deferred || this.hiddenIds.has(id)) continue;
 
       const spawning =
         state.spawnStartTime > 0 && (now - state.spawnStartTime) / EVENT_SPAWN_MS < 1;

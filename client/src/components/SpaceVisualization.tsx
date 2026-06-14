@@ -22,13 +22,15 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
   const fingerprintRef = useRef('');
   const [autoRotating, setAutoRotating] = useState(true);
   const [labelsVisible, setLabelsVisible] = useState(true);
+  const activeTypesRef = useRef(activeTypes);
+  activeTypesRef.current = activeTypes;
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => activeTypes.has(event.type));
   }, [events, activeTypes]);
 
   const graphData = useMemo(() => {
-    const next = buildGraph(filteredEvents);
+    const next = buildGraph(events);
     const fingerprint = graphDataFingerprint(next);
     if (fingerprint === fingerprintRef.current) {
       return graphDataRef.current;
@@ -36,7 +38,7 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
     fingerprintRef.current = fingerprint;
     graphDataRef.current = next;
     return next;
-  }, [filteredEvents]);
+  }, [events]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -97,13 +99,19 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
 
     scene.updateGraph(graphData);
 
-    for (const event of filteredEvents) {
+    const activeTypes = activeTypesRef.current;
+    for (const event of events) {
       if (seenEventIds.current.has(event.id)) continue;
       seenEventIds.current.add(event.id);
 
       const actorLogin = event.actor?.login;
       const repoName = event.repo?.name;
       if (!actorLogin || !repoName) continue;
+
+      if (!activeTypes.has(event.type)) {
+        scene.instantRevealEvent(event.id);
+        continue;
+      }
 
       const eventLabel =
         event.type === 'PushEvent' && event.commitMessage
@@ -119,10 +127,16 @@ export function SpaceVisualization({ events, activeTypes, onEventCountChange }: 
       });
     }
 
-    if (seenEventIds.current.size > filteredEvents.length * 2) {
-      seenEventIds.current = new Set(filteredEvents.map((event) => event.id));
+    scene.syncEventTypeFilterVisibility();
+
+    if (seenEventIds.current.size > events.length * 2) {
+      seenEventIds.current = new Set(events.map((event) => event.id));
     }
-  }, [graphData, filteredEvents]);
+  }, [graphData, events]);
+
+  useEffect(() => {
+    sceneRef.current?.setActiveEventTypes(activeTypes);
+  }, [activeTypes]);
 
   useEffect(() => {
     onEventCountChange?.(filteredEvents.length);
