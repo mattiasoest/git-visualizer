@@ -1,18 +1,25 @@
 # GitHub Events Visualizer
 
-Real-time visualization of GitHub public activity. A Spring Boot backend polls the [GitHub Events REST API](https://docs.github.com/en/rest/activity/events?apiVersion=2026-03-10) and streams new events to a React frontend over Server-Sent Events (SSE).
+Real-time visualization of GitHub public activity. A Spring Boot backend polls the [GitHub Events REST API](https://docs.github.com/en/rest/activity/events?apiVersion=2026-03-10) and streams new events to a React client over Server-Sent Events (SSE).
+
+## Project layout
+
+```
+client/   React + Vite UI
+server/   Spring Boot API and static asset packaging
+```
 
 ## Architecture
 
-- **Backend**: Spring Boot 4 polls `GET /events` with ETag support and respects `X-Poll-Interval`
-- **Frontend**: React + Vite renders a force-directed activity graph and live event feed
+- **Backend**: Spring Boot 4 in `server/` polls `GET /events` with ETag support and respects `X-Poll-Interval`
+- **Frontend**: React + Vite in `client/` renders a force-directed activity graph and live event feed
 - **Transport**: SSE at `/api/stream/events`, bootstrap snapshot at `/api/events`
 
 ## Prerequisites
 
 - Java 25+
 - Maven 3.9+
-- Node.js 22+ (for local frontend dev; Maven can install Node for production builds)
+- Node.js 22+ (for local client dev; Maven can install Node for production builds)
 
 ## Configuration
 
@@ -24,7 +31,7 @@ export GITHUB_TOKEN=ghp_your_token_here
 
 Without a token, unauthenticated requests are limited to 60 requests/hour.
 
-Configuration lives in [`src/main/resources/application.yaml`](src/main/resources/application.yaml):
+Configuration lives in [`server/src/main/resources/application.yaml`](server/src/main/resources/application.yaml):
 
 ```yaml
 github:
@@ -37,14 +44,14 @@ github:
 
 ## Development
 
-Run backend and frontend separately:
+Run backend and client separately:
 
 ```bash
 # Terminal 1 — backend (port 8080)
-./mvnw spring-boot:run
+cd server && ./mvnw spring-boot:run
 
-# Terminal 2 — frontend (port 5173, proxies /api to backend)
-cd frontend && npm install && npm run dev
+# Terminal 2 — client (port 5173, proxies /api to backend)
+cd client && npm install && npm run dev
 ```
 
 Open http://localhost:5173
@@ -54,8 +61,8 @@ Open http://localhost:5173
 Builds the React app into `src/main/resources/static` and packages a single Spring Boot JAR:
 
 ```bash
-./mvnw package
-java -jar target/gitvisualizer-0.0.1-SNAPSHOT.jar
+cd server && ./mvnw package
+java -jar server/target/gitvisualizer-0.0.1-SNAPSHOT.jar
 ```
 
 Open http://localhost:8080
