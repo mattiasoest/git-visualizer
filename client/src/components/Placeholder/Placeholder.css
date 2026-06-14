@@ -1,0 +1,43 @@
+.space-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #7a8cb8;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.space-placeholder__ring {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  border: 2px solid rgba(120, 180, 255, 0.2);
+  border-top-color: #79c0ff;
+  border-radius: 50%;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.space-placeholder .hint {
+  max-width: 28rem;
+  font-size: 0.9rem;
+  margin: 0.5rem auto 0;
+  opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .space-placeholder {
+    padding: 1rem;
+  }
+
+  .space-placeholder .hint {
+    font-size: 0.8rem;
+  }
+}

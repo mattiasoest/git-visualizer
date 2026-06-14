@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SpaceVisualization } from './components/SpaceVisualization';
+import { SpaceVisualization } from './components/SpaceVisualization/SpaceVisualization';
 import { useEventStream } from './hooks/useEventStream';
 import { useViewportHeight } from './hooks/useViewportHeight';
 import { FILTERABLE_TYPES, eventColor } from './types/event';
