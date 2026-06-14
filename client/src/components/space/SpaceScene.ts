@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { GraphData, GraphLink, GraphNode } from './graphBuilder';
+import { computeEventBurstGrouping, eventNodeId } from './graphBuilder';
 import { computeHierarchicalPositions, hashToUnitVector } from './clusterLayout';
 import { EVENT_SPAWN_DEFERRED, EventParticleLayer } from './EventParticleLayer';
-import { eventNodeId } from './graphBuilder';
 import {
   createEventLabelSprite,
   createLabelSprite,
@@ -11,6 +11,7 @@ import {
   disposeLabelTextures,
 } from './labelSprite';
 import { softCircleSprite } from './softSprite';
+import { pointsAttenuationScale } from './sizedPointMaterial';
 
 const REPO_BASE_RADIUS = 2.0;
 const REPO_ACTIVITY_MAX = 10;
@@ -128,6 +129,8 @@ export class SpaceScene {
   private positions = new Map<string, THREE.Vector3>();
   private nodeTopology = new Set<string>();
   private linkTopology = new Set<string>();
+  private eventNodes: GraphNode[] = [];
+  private spawnedEventNodeIds = new Set<string>();
   private pointSprite = softCircleSprite();
   private isVisible = true;
   private flightPosition = new THREE.Vector3();
@@ -737,15 +740,28 @@ export class SpaceScene {
     return state;
   }
 
-  private syncEventParticles(eventNodes: GraphNode[]): void {
-    const particles = eventNodes.map((node) => {
+  private markEventSpawned(nodeId: string): void {
+    if (!nodeId.startsWith('event:') || this.spawnedEventNodeIds.has(nodeId)) return;
+    this.spawnedEventNodeIds.add(nodeId);
+    this.syncEventParticles();
+    this.applyLinkVisibility();
+    this.applyNodeLabelVisibility();
+  }
+
+  private syncEventParticles(): void {
+    const burstGrouping = computeEventBurstGrouping(this.eventNodes, this.spawnedEventNodeIds);
+    const particles = this.eventNodes.map((node) => {
       const state = this.nodeStates.get(node.id);
+      const burst = burstGrouping.get(node.id);
       return {
         id: node.id,
         parentRepoId: node.parentRepoId!,
         color: node.color ?? '#8b949e',
         spawnStartTime: state?.spawnStartTime ?? EVENT_SPAWN_DEFERRED,
         pulseUntil: state?.pulseUntil ?? 0,
+        sizeScale: burst?.sizeScale ?? 1,
+        suppressed: burst?.suppressed ?? false,
+        upgraded: burst?.upgraded === true,
       };
     });
 
@@ -850,6 +866,7 @@ export class SpaceScene {
 
     if (data.nodes.length === 0) {
       this.clearFlights();
+      this.spawnedEventNodeIds.clear();
     }
 
     this.positions = computeHierarchicalPositions(data.nodes, data.links);
@@ -861,7 +878,8 @@ export class SpaceScene {
     }
 
     this.syncLinks(data.links);
-    this.syncEventParticles(data.nodes.filter((n) => n.kind === 'event'));
+    this.eventNodes = data.nodes.filter((n) => n.kind === 'event');
+    this.syncEventParticles();
     this.graphHasNodes = data.nodes.length > 0;
     this.applyNodeLabelVisibility();
 
@@ -875,7 +893,7 @@ export class SpaceScene {
     if (this.isSpawnDeferred(state)) return false;
     if (state.spawnStartTime > 0) return false;
     if (state.node.kind === 'event') {
-      return Boolean(state.node.label && state.node.actorLogin);
+      return Boolean(state.node.label && state.node.actorLogin) && !this.eventParticles.isSuppressed(state.node.id);
     }
     return true;
   }
@@ -898,7 +916,8 @@ export class SpaceScene {
     if (this.labelsVisible && this.graphHasNodes) {
       const shouldShow =
         state.node.kind === 'event'
-          ? Boolean(state.node.label && state.node.actorLogin)
+          ? Boolean(state.node.label && state.node.actorLogin) &&
+            !this.eventParticles.isSuppressed(state.node.id)
           : true;
       state.label.visible = shouldShow;
       if (shouldShow) {
@@ -924,6 +943,11 @@ export class SpaceScene {
   }
 
   enqueueEventFlight(payload: EventFlightPayload): void {
+    const targetId = eventNodeId(payload.eventId);
+    if (this.eventParticles.isSuppressed(targetId)) {
+      this.instantRevealEvent(payload.eventId);
+      return;
+    }
     this.flightQueue.push({ ...payload });
     this.processFlightQueue();
   }
@@ -950,6 +974,7 @@ export class SpaceScene {
 
     this.completeNodeSpawn(target);
     this.eventParticles.completeSpawn(target.node.id);
+    this.markEventSpawned(targetId);
     this.syncIdleNodeLabel(target);
   }
 
@@ -1045,6 +1070,7 @@ export class SpaceScene {
 
   private isEventEndpointVisible(id: string): boolean {
     if (!id.startsWith('event:')) return true;
+    if (this.eventParticles.isSuppressed(id)) return false;
     const state = this.nodeStates.get(id);
     return state ? state.anchor.visible : false;
   }
@@ -1132,11 +1158,14 @@ export class SpaceScene {
     const mid = new THREE.Vector3().lerpVectors(from, to, 0.5);
     mid.y += from.distanceTo(to) * 0.08;
 
+    const sizeScale = this.eventParticles.getSizeScale(targetId);
+    const particleSize = EVENT_PARTICLE_SIZE * sizeScale;
+
     const positions = new Float32Array([from.x, from.y, from.z]);
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const material = new THREE.PointsMaterial({
-      size: EVENT_PARTICLE_SIZE,
+      size: particleSize,
       map: this.pointSprite,
       color: new THREE.Color(payload.eventColor),
       transparent: true,
@@ -1154,8 +1183,8 @@ export class SpaceScene {
       from,
       to,
       mid,
-      startSize: EVENT_PARTICLE_SIZE * 0.85,
-      endSize: EVENT_PARTICLE_SIZE,
+      startSize: particleSize * 0.85,
+      endSize: particleSize,
       startTime: performance.now(),
     });
 
@@ -1255,6 +1284,7 @@ export class SpaceScene {
           this.eventParticles.setWorldPosition(flight.targetId, flight.to);
           this.revealEventNode(target);
         }
+        this.markEventSpawned(flight.targetId);
         const impactUntil = performance.now() + FLIGHT_IMPACT_PULSE_MS;
         this.eventParticles.setPulseUntil(flight.targetId, impactUntil);
         if (target) target.pulseUntil = impactUntil;
@@ -1285,7 +1315,7 @@ export class SpaceScene {
 
   private updateNodes(now: number): void {
     const time = this.clock.getElapsedTime();
-    this.eventParticles.update(time, now);
+    this.eventParticles.update(time, now, pointsAttenuationScale(this.renderer));
 
     for (const state of this.nodeStates.values()) {
       if (state.node.kind === 'event') {

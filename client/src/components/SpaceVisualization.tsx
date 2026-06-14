@@ -95,7 +95,8 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
     scene.updateGraph(graphData);
 
     const activeTypes = activeTypesRef.current;
-    for (const event of events) {
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i]!;
       if (seenEventIds.current.has(event.id)) continue;
       seenEventIds.current.add(event.id);
 

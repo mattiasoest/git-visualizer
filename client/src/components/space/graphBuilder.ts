@@ -12,6 +12,7 @@ export interface GraphNode {
   ownerOrg?: string;
   actorLogin?: string;
   commitMessage?: string;
+  createdAt?: string;
 }
 
 export interface GraphLink {
@@ -30,6 +31,81 @@ export interface GraphData {
 
 export function eventNodeId(eventId: string): string {
   return `event:${eventId}`;
+}
+
+const BURST_GROUP_MIN = 3;
+const BURST_SIZE_SCALE = 1.4;
+
+export interface EventBurstGrouping {
+  sizeScale: number;
+  suppressed: boolean;
+  upgraded: boolean;
+}
+
+function burstGroupKey(node: GraphNode): string | null {
+  if (!node.parentRepoId || !node.actorLogin || !node.eventType) return null;
+  return `${node.parentRepoId}:${node.actorLogin}:${node.eventType}`;
+}
+
+function normalGrouping(): EventBurstGrouping {
+  return { sizeScale: 1, suppressed: false, upgraded: false };
+}
+
+/** When a repo has 3+ events of the same type from the same user, every 3 collapse into one 2× particle; leftover events stay normal size. */
+export function computeEventBurstGrouping(
+  eventNodes: GraphNode[],
+  spawnedNodeIds: ReadonlySet<string> = new Set(),
+): Map<string, EventBurstGrouping> {
+  const result = new Map<string, EventBurstGrouping>();
+  const groups = new Map<string, GraphNode[]>();
+
+  for (const node of eventNodes) {
+    const key = burstGroupKey(node);
+    if (!key) {
+      result.set(node.id, normalGrouping());
+      continue;
+    }
+    const members = groups.get(key) ?? [];
+    members.push(node);
+    groups.set(key, members);
+  }
+
+  for (const members of groups.values()) {
+    members.sort(
+      (a, b) =>
+        new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime(),
+    );
+
+    const count = members.length;
+
+    for (let idx = 0; idx < count; idx++) {
+      const node = members[idx]!;
+      const blockStart = Math.floor(idx / BURST_GROUP_MIN) * BURST_GROUP_MIN;
+      const blockEnd = blockStart + BURST_GROUP_MIN - 1;
+      const blockFull = count > blockEnd;
+
+      const thirdInBlock = blockFull ? members[blockEnd]! : null;
+      const blockMerged =
+        blockFull &&
+        thirdInBlock !== null &&
+        spawnedNodeIds.has(thirdInBlock.id);
+
+      if (idx < blockStart || idx > blockEnd || !blockMerged) {
+        result.set(node.id, normalGrouping());
+        continue;
+      }
+
+      const tripletIdx = idx - blockStart;
+      const isRepresentative = tripletIdx === 0;
+      result.set(node.id, {
+        sizeScale: isRepresentative ? BURST_SIZE_SCALE : 1,
+        suppressed: !isRepresentative,
+        upgraded: isRepresentative,
+      });
+    }
+  }
+
+  return result;
 }
 
 export function buildGraph(events: EventView[]): GraphData {
@@ -68,6 +144,7 @@ export function buildGraph(events: EventView[]): GraphData {
       color,
       parentRepoId: repoId,
       actorLogin,
+      createdAt: event.createdAt,
       eventCount: 1,
       commitMessage: event.commitMessage ?? undefined,
     });
