@@ -400,8 +400,24 @@ export class SpaceScene {
     };
   }
 
+  /** 1 = inner core, 2 = + first glow, 3 = full shell (all glows + outer sphere). */
+  private repoVisualTier(eventCount: number): number {
+    return Math.min(Math.max(eventCount, 1), 3);
+  }
+
+  private syncRepoVisualTier(state: NodeState, eventCount: number): void {
+    const tier = this.repoVisualTier(eventCount);
+    const { visual } = state;
+
+    visual.children[REPO_VISUAL.atmosphere].visible = tier >= 3;
+    visual.children[REPO_VISUAL.innerGlow].visible = tier >= 2;
+    visual.children[REPO_VISUAL.outerShell].visible = tier >= 3;
+    visual.children[REPO_VISUAL.outerWire].visible = tier >= 3;
+    visual.children[REPO_VISUAL.innerCore].visible = tier >= 1;
+  }
+
   private repoOrbitRingCount(eventCount: number): number {
-    if (eventCount < 3) return 0;
+    if (eventCount < 4) return 0;
     if (eventCount < 6) return 1;
     return 2;
   }
@@ -639,6 +655,7 @@ export class SpaceScene {
       if (eventCountChanged && node.kind === 'repo') {
         const scale = this.repoRadius(node.eventCount);
         existing.baseRadius = scale;
+        this.syncRepoVisualTier(existing, node.eventCount);
         this.syncRepoOrbitRings(existing, node.eventCount);
         this.applyRepoScales(existing.visual, scale, existing.repoOrbitRings);
         this.applyRepoColors(existing, node.eventCount);
@@ -713,6 +730,7 @@ export class SpaceScene {
       baseRadius,
     };
     if (node.kind === 'repo') {
+      this.syncRepoVisualTier(state, node.eventCount);
       this.syncRepoOrbitRings(state, node.eventCount);
     }
     this.nodeStates.set(node.id, state);
