@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { eventOrbitOffset } from './clusterLayout';
+import { eventOrbitOffset, resolveEventOrbitPhaseOffset } from './clusterLayout';
 
 const EVENT_NODE_BASE_RADIUS = 0.75;
 const EVENT_SPAWN_MS = 1600;
@@ -13,6 +13,7 @@ export interface EventParticleState {
   color: string;
   spawnStartTime: number;
   pulseUntil: number;
+  orbitPhaseOffset?: number;
 }
 
 function easeOutBack(t: number): number {
@@ -37,8 +38,12 @@ export class EventParticleLayer {
   private worldPositions = new Map<string, THREE.Vector3>();
   private parentPositions = new Map<string, THREE.Vector3>();
   private readonly scratchColor = new THREE.Color();
-  private burstRings: { mesh: THREE.Mesh; material: THREE.MeshBasicMaterial; startTime: number }[] =
-    [];
+  private burstRings: {
+    mesh: THREE.Mesh;
+    material: THREE.MeshBasicMaterial;
+    startTime: number;
+    eventId: string;
+  }[] = [];
 
   constructor(
     pointSprite: THREE.Texture,
@@ -80,7 +85,11 @@ export class EventParticleLayer {
     this.group.add(this.pointsGlow);
   }
 
-  sync(events: EventParticleState[], parentPositions: Map<string, THREE.Vector3>): void {
+  sync(
+    events: EventParticleState[],
+    parentPositions: Map<string, THREE.Vector3>,
+    time = 0,
+  ): void {
     this.parentPositions = parentPositions;
 
     const nextIds = new Set(events.map((e) => e.id));
@@ -91,6 +100,8 @@ export class EventParticleLayer {
       if (!nextIds.has(id)) this.worldPositions.delete(id);
     }
 
+    const newIds: string[] = [];
+
     for (const event of events) {
       const existing = this.states.get(event.id);
       if (existing) {
@@ -99,8 +110,18 @@ export class EventParticleLayer {
         existing.spawnStartTime = event.spawnStartTime;
         existing.pulseUntil = event.pulseUntil;
       } else {
-        this.states.set(event.id, { ...event });
+        this.states.set(event.id, { ...event, orbitPhaseOffset: 0 });
+        newIds.push(event.id);
       }
+    }
+
+    for (const id of newIds) {
+      const state = this.states.get(id);
+      if (!state) continue;
+      const siblings = Array.from(this.states.values())
+        .filter((s) => s.parentRepoId === state.parentRepoId)
+        .map((s) => ({ id: s.id, phaseOffset: s.orbitPhaseOffset ?? 0 }));
+      state.orbitPhaseOffset = resolveEventOrbitPhaseOffset(id, time, siblings);
     }
 
     this.order = events.map((e) => e.id);
@@ -108,12 +129,21 @@ export class EventParticleLayer {
 
     for (const id of this.order) {
       const state = this.states.get(id);
-      if (state) this.computeWorldPosition(id, state, 0);
+      if (state) this.computeWorldPosition(id, state, time);
     }
   }
 
   getPosition(id: string): THREE.Vector3 | undefined {
     return this.worldPositions.get(id);
+  }
+
+  setWorldPosition(id: string, position: THREE.Vector3): void {
+    let worldPos = this.worldPositions.get(id);
+    if (!worldPos) {
+      worldPos = new THREE.Vector3();
+      this.worldPositions.set(id, worldPos);
+    }
+    worldPos.copy(position);
   }
 
   isSpawnDeferred(id: string): boolean {
@@ -125,7 +155,7 @@ export class EventParticleLayer {
     const state = this.states.get(id);
     if (!state) return;
     state.spawnStartTime = performance.now();
-    this.spawnBurstRing(state.color, this.worldPositions.get(id));
+    this.spawnBurstRing(id, state.color);
   }
 
   setPulseUntil(id: string, until: number): void {
@@ -140,6 +170,14 @@ export class EventParticleLayer {
 
   setHidden(ids: Set<string>): void {
     this.hiddenIds = ids;
+  }
+
+  advancePositions(time: number): void {
+    for (let i = 0; i < this.order.length; i++) {
+      const id = this.order[i]!;
+      const state = this.states.get(id);
+      if (state) this.computeWorldPosition(id, state, time);
+    }
   }
 
   update(time: number, now: number): void {
@@ -245,10 +283,10 @@ export class EventParticleLayer {
       worldPos = new THREE.Vector3();
       this.worldPositions.set(id, worldPos);
     }
-    return worldPos.copy(parentPos).add(eventOrbitOffset(id, time));
+    return worldPos.copy(parentPos).add(eventOrbitOffset(id, time, state.orbitPhaseOffset ?? 0));
   }
 
-  private spawnBurstRing(color: string, position?: THREE.Vector3): void {
+  private spawnBurstRing(eventId: string, color: string): void {
     if (this.burstRings.length >= 8) {
       const oldest = this.burstRings.shift()!;
       this.group.remove(oldest.mesh);
@@ -265,9 +303,10 @@ export class EventParticleLayer {
     const mesh = new THREE.Mesh(this.ringGeo, material);
     mesh.rotation.x = Math.PI / 2;
     mesh.scale.setScalar(EVENT_NODE_BASE_RADIUS * 0.25);
+    const position = this.worldPositions.get(eventId);
     if (position) mesh.position.copy(position);
     this.group.add(mesh);
-    this.burstRings.push({ mesh, material, startTime: performance.now() });
+    this.burstRings.push({ mesh, material, startTime: performance.now(), eventId });
   }
 
   private updateBurstRings(now: number): void {
@@ -280,6 +319,13 @@ export class EventParticleLayer {
         ring.material.dispose();
         continue;
       }
+      const position = this.worldPositions.get(ring.eventId);
+      if (!position) {
+        this.group.remove(ring.mesh);
+        ring.material.dispose();
+        continue;
+      }
+      ring.mesh.position.copy(position);
       ring.mesh.scale.setScalar(EVENT_NODE_BASE_RADIUS * (0.25 + spawnT * 6.5));
       ring.material.opacity = 0.9 * (1 - spawnT ** 0.85);
       this.burstRings[write++] = ring;

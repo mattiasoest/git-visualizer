@@ -108,17 +108,10 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
         continue;
       }
 
-      const eventLabel =
-        event.type === 'PushEvent' && event.commitMessage
-          ? event.commitMessage
-          : event.summary;
-
       scene.enqueueEventFlight({
         eventId: event.id,
         repoId: `repo:${repoName}`,
-        actorLogin,
         eventColor: eventColor(event.type),
-        eventLabel,
       });
     }
 

@@ -7,9 +7,13 @@ export const SUB_ORBIT_RADIUS = 12;
 export const SUB_ORBIT_MIN = 3;
 const REPO_ORBIT_SPREAD = 0.6;
 const EVENT_ORBIT_RADIUS = 6.5;
+export const EVENT_NODE_BASE_RADIUS = 0.75;
+export const EVENT_PARTICLE_DIAMETER = EVENT_NODE_BASE_RADIUS * 2.2;
+const ORBIT_ANGULAR_SPEED = 0.25;
 
 const scratchA = new THREE.Vector3();
 const scratchB = new THREE.Vector3();
+const scratchOrbit = new THREE.Vector3();
 
 export function hashToUnitVector(id: string): THREE.Vector3 {
   let hash = 0;
@@ -28,17 +32,54 @@ export function hashToUnitVector(id: string): THREE.Vector3 {
   );
 }
 
-export function eventOrbitOffset(eventId: string, time = 0): THREE.Vector3 {
+export function eventOrbitAngle(eventId: string, time = 0, phaseOffset = 0): number {
   const hash = hashToUnitVector(eventId);
   const baseAngle = (hash.x + 1) * Math.PI;
+  return baseAngle + time * ORBIT_ANGULAR_SPEED + hash.z * 0.35 + phaseOffset;
+}
+
+export function eventOrbitOffset(eventId: string, time = 0, phaseOffset = 0): THREE.Vector3 {
+  const hash = hashToUnitVector(eventId);
   const radius = EVENT_ORBIT_RADIUS + (hash.y + 1) * 2;
-  const wobble = time * 0.25 + hash.z * 0.35;
-  const angle = baseAngle + wobble;
+  const angle = eventOrbitAngle(eventId, time, phaseOffset);
   return new THREE.Vector3(
     Math.cos(angle) * radius,
     (hash.z * 0.5 + 0.5) * radius * 0.4 - radius * 0.15,
     Math.sin(angle) * radius * 0.85,
   );
+}
+
+export function resolveEventOrbitPhaseOffset(
+  eventId: string,
+  time: number,
+  siblings: { id: string; phaseOffset: number }[],
+): number {
+  const minDist = EVENT_PARTICLE_DIAMETER;
+  const radius = EVENT_ORBIT_RADIUS + (hashToUnitVector(eventId).y + 1) * 2;
+  const angleStep = minDist / radius;
+  const maxPhase = Math.PI * 2;
+
+  let phaseOffset = 0;
+  while (phaseOffset < maxPhase) {
+    scratchOrbit.copy(eventOrbitOffset(eventId, time, phaseOffset));
+    let tooClose = false;
+
+    for (const sibling of siblings) {
+      if (sibling.id === eventId) continue;
+      const dist = scratchOrbit.distanceTo(
+        eventOrbitOffset(sibling.id, time, sibling.phaseOffset),
+      );
+      if (dist < minDist) {
+        tooClose = true;
+        break;
+      }
+    }
+
+    if (!tooClose) return phaseOffset;
+    phaseOffset += angleStep;
+  }
+
+  return phaseOffset;
 }
 
 export interface OrgCluster {

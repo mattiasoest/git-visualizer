@@ -9,11 +9,9 @@ import {
   createLabelSprite,
   disposeEventLabel,
   disposeLabelTextures,
-  getLabelTexture,
 } from './labelSprite';
 import { softCircleSprite } from './softSprite';
 
-const USER_PARTICLE_COLOR = '#56d364';
 const REPO_BASE_RADIUS = 2.0;
 const REPO_ACTIVITY_MAX = 10;
 const REPO_VISUAL = {
@@ -31,16 +29,12 @@ const REPO_SPAWN_MS = 900;
 const EVENT_SPAWN_MS = 1600;
 const SPAWN_DEFERRED = -1;
 const MAX_ACTIVE_FLIGHTS = 24;
-const TRAIL_POINTS = 10;
-const USER_PARTICLE_SIZE = EVENT_NODE_BASE_RADIUS * 2.2 * 0.6;
 const EVENT_PARTICLE_SIZE = EVENT_NODE_BASE_RADIUS * 2.2;
 
 export interface EventFlightPayload {
   eventId: string;
   repoId: string;
-  actorLogin: string;
   eventColor: string;
-  eventLabel: string;
 }
 
 interface QueuedFlight extends EventFlightPayload {}
@@ -68,20 +62,14 @@ interface NodeState {
 }
 
 interface EventFlight {
-  mesh: THREE.Mesh;
-  trail: THREE.Points;
-  trailPositions: Float32Array;
-  trailHead: number;
+  points: THREE.Points;
   targetId: string;
   from: THREE.Vector3;
   to: THREE.Vector3;
   mid: THREE.Vector3;
-  startColor: THREE.Color;
-  endColor: THREE.Color;
   startSize: number;
   endSize: number;
   startTime: number;
-  label?: THREE.Sprite;
 }
 
 
@@ -160,8 +148,6 @@ export class SpaceScene {
   private readonly repoOrbitGeo = new THREE.TorusGeometry(1, 0.028, 6, 40);
   private readonly repoOrbitGeoB = new THREE.TorusGeometry(1, 0.02, 6, 36);
   private readonly repoGlowGeo = new THREE.SphereGeometry(1, 12, 12);
-  private readonly flightGeo = new THREE.SphereGeometry(0.35, 8, 8);
-
   private readonly repoAtmosphereMat = new THREE.MeshBasicMaterial({
     color: 0x1a6b45,
     transparent: true,
@@ -211,23 +197,6 @@ export class SpaceScene {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  private readonly flightMat = new THREE.MeshBasicMaterial({
-    transparent: true,
-    opacity: 1,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  private readonly trailMat = new THREE.PointsMaterial({
-    size: 1.6,
-    map: this.pointSprite,
-    transparent: true,
-    opacity: 0.85,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    sizeAttenuation: true,
-    alphaTest: 0.01,
-  });
-
   constructor(container: HTMLElement) {
     this.container = container;
     this.eventParticles = new EventParticleLayer(this.pointSprite, this.burstRingGeo);
@@ -767,7 +736,7 @@ export class SpaceScene {
       if (id.startsWith('repo:')) parentPositions.set(id, pos);
     }
 
-    this.eventParticles.sync(particles, parentPositions);
+    this.eventParticles.sync(particles, parentPositions, this.clock.getElapsedTime());
   }
 
   private getNodePosition(id: string): THREE.Vector3 | undefined {
@@ -886,6 +855,7 @@ export class SpaceScene {
     if (!this.labelsVisible || !this.graphHasNodes) return false;
     if (!state.anchor.visible) return false;
     if (this.isSpawnDeferred(state)) return false;
+    if (state.spawnStartTime > 0) return false;
     if (state.node.kind === 'event') {
       return Boolean(state.node.label && state.node.actorLogin);
     }
@@ -930,30 +900,9 @@ export class SpaceScene {
   }
 
   private disposeFlight(flight: EventFlight): void {
-    this.flightGroup.remove(flight.mesh);
-    this.flightGroup.remove(flight.trail);
-    (flight.mesh.material as THREE.Material).dispose();
-    flight.trail.geometry.dispose();
-    (flight.trail.material as THREE.Material).dispose();
-    if (flight.label) {
-      this.flightGroup.remove(flight.label);
-      (flight.label.material as THREE.SpriteMaterial).dispose();
-    }
-  }
-
-  private createActorFlightLabel(actorLogin: string): THREE.Sprite {
-    const texture = getLabelTexture(actorLogin, 'repo');
-    const material = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-    });
-    const sprite = new THREE.Sprite(material);
-    const aspect = texture.image.width / texture.image.height;
-    const height = 0.85;
-    sprite.scale.set(height * aspect, height, 1);
-    return sprite;
+    this.flightGroup.remove(flight.points);
+    flight.points.geometry.dispose();
+    (flight.points.material as THREE.Material).dispose();
   }
 
   enqueueEventFlight(payload: EventFlightPayload): void {
@@ -1107,10 +1056,7 @@ export class SpaceScene {
   private beginEventSpawn(state: NodeState): void {
     state.spawnStartTime = performance.now();
     this.eventParticles.beginSpawn(state.node.id);
-    if (state.node.label && state.node.actorLogin) {
-      state.label.visible = this.labelsVisible;
-      (state.label.material as THREE.SpriteMaterial).opacity = 0;
-    }
+    state.label.visible = false;
   }
 
   private processFlightQueue(): void {
@@ -1168,52 +1114,31 @@ export class SpaceScene {
     const mid = new THREE.Vector3().lerpVectors(from, to, 0.5);
     mid.y += from.distanceTo(to) * 0.08;
 
-    const startColor = new THREE.Color(USER_PARTICLE_COLOR);
-    const endColor = new THREE.Color(payload.eventColor);
-
-    const mesh = new THREE.Mesh(this.flightGeo, this.flightMat.clone());
-    (mesh.material as THREE.MeshBasicMaterial).color.copy(startColor);
-    mesh.scale.setScalar(USER_PARTICLE_SIZE);
-    mesh.position.copy(from);
-
-    const trailPositions = new Float32Array(TRAIL_POINTS * 3);
-    for (let i = 0; i < TRAIL_POINTS; i++) {
-      trailPositions[i * 3] = from.x;
-      trailPositions[i * 3 + 1] = from.y;
-      trailPositions[i * 3 + 2] = from.z;
-    }
-
-    const trailGeometry = new THREE.BufferGeometry();
-    trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-    const trail = new THREE.Points(trailGeometry, this.trailMat.clone());
-    (trail.material as THREE.PointsMaterial).color.copy(startColor);
-
-    this.flightGroup.add(mesh);
-    this.flightGroup.add(trail);
-
-    let label: THREE.Sprite | undefined;
-    if (this.labelsVisible) {
-      label = this.createActorFlightLabel(payload.actorLogin);
-      label.position.copy(from);
-      label.position.y += 1.6;
-      this.flightGroup.add(label);
-    }
+    const positions = new Float32Array([from.x, from.y, from.z]);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+      size: EVENT_PARTICLE_SIZE,
+      map: this.pointSprite,
+      color: new THREE.Color(payload.eventColor),
+      transparent: true,
+      opacity: 0.95,
+      sizeAttenuation: true,
+      depthWrite: false,
+      alphaTest: 0.01,
+    });
+    const points = new THREE.Points(geometry, material);
+    this.flightGroup.add(points);
 
     this.flights.push({
-      mesh,
-      trail,
-      trailPositions,
-      trailHead: 0,
+      points,
       targetId,
       from,
       to,
       mid,
-      startColor,
-      endColor,
-      startSize: USER_PARTICLE_SIZE,
+      startSize: EVENT_PARTICLE_SIZE * 0.85,
       endSize: EVENT_PARTICLE_SIZE,
       startTime: performance.now(),
-      label,
     });
 
     return true;
@@ -1246,13 +1171,6 @@ export class SpaceScene {
     if (this.labelsVisible === visible) return;
     this.labelsVisible = visible;
     this.applyNodeLabelVisibility();
-    for (const flight of this.flights) {
-      if (!flight.label) continue;
-      flight.label.visible = visible;
-      if (visible) {
-        (flight.label.material as THREE.SpriteMaterial).opacity = 1;
-      }
-    }
     for (const listener of this.labelVisibilityListeners) {
       listener(visible);
     }
@@ -1276,12 +1194,20 @@ export class SpaceScene {
     this.renderer.setSize(width, height, false);
   }
 
+  private refreshFlightCurve(flight: EventFlight): void {
+    const liveTarget = this.getNodePosition(flight.targetId);
+    if (!liveTarget) return;
+    flight.to.copy(liveTarget);
+    flight.mid.lerpVectors(flight.from, flight.to, 0.5);
+    flight.mid.y += flight.from.distanceTo(flight.to) * 0.08;
+  }
+
   private updateFlights(now: number): void {
     let writeIndex = 0;
-    const morphColor = new THREE.Color();
 
     for (let i = 0; i < this.flights.length; i++) {
       const flight = this.flights[i]!;
+      this.refreshFlightCurve(flight);
       const elapsed = now - flight.startTime;
       const t = Math.min(elapsed / FLIGHT_DURATION_MS, 1);
       const eased = t * t;
@@ -1294,32 +1220,21 @@ export class SpaceScene {
       pos.y = omt2 * flight.from.y + 2 * oneMinusT * eased * flight.mid.y + e2 * flight.to.y;
       pos.z = omt2 * flight.from.z + 2 * oneMinusT * eased * flight.mid.z + e2 * flight.to.z;
 
-      morphColor.copy(flight.startColor).lerp(flight.endColor, eased);
       const size = flight.startSize + (flight.endSize - flight.startSize) * eased;
-
-      flight.mesh.position.copy(pos);
-      flight.mesh.scale.setScalar(size);
-      (flight.mesh.material as THREE.MeshBasicMaterial).color.copy(morphColor);
-      (flight.trail.material as THREE.PointsMaterial).color.copy(morphColor);
-
-      flight.trailHead = (flight.trailHead + 1) % TRAIL_POINTS;
-      const idx = flight.trailHead * 3;
-      flight.trailPositions[idx] = pos.x;
-      flight.trailPositions[idx + 1] = pos.y;
-      flight.trailPositions[idx + 2] = pos.z;
-      flight.trail.geometry.attributes.position.needsUpdate = true;
-
-      if (flight.label) {
-        flight.label.position.copy(pos);
-        flight.label.position.y += 1.6;
-        (flight.label.material as THREE.SpriteMaterial).opacity = 1 - t * 0.9;
-      }
+      const positionAttr = flight.points.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const arr = positionAttr.array as Float32Array;
+      arr[0] = pos.x;
+      arr[1] = pos.y;
+      arr[2] = pos.z;
+      positionAttr.needsUpdate = true;
+      (flight.points.material as THREE.PointsMaterial).size = size;
 
       if (t < 1) {
         this.flights[writeIndex++] = flight;
       } else {
         const target = this.nodeStates.get(flight.targetId);
         if (target?.node.kind === 'event' && this.isSpawnDeferred(target)) {
+          this.eventParticles.setWorldPosition(flight.targetId, flight.to);
           this.revealEventNode(target);
         }
         const impactUntil = performance.now() + FLIGHT_IMPACT_PULSE_MS;
@@ -1372,17 +1287,23 @@ export class SpaceScene {
           continue;
         }
 
-        if (state.spawnStartTime > 0 && this.isNodeSpawning(state, EVENT_SPAWN_MS, now)) {
+        if (state.spawnStartTime > 0) {
           const spawnT = Math.min((now - state.spawnStartTime) / EVENT_SPAWN_MS, 1);
-          if (state.node.label && state.node.actorLogin && this.labelsVisible) {
-            state.label.visible = true;
-            const labelT = Math.max(0, (spawnT - 0.4) / 0.6);
-            (state.label.material as THREE.SpriteMaterial).opacity = labelT;
-          } else if (!this.labelsVisible) {
-            state.label.visible = false;
-          }
-          if (spawnT >= 1) {
+          if (spawnT < 1) {
+            if (state.node.label && state.node.actorLogin && this.labelsVisible) {
+              const labelT = Math.max(0, (spawnT - 0.4) / 0.6);
+              if (labelT > 0) {
+                state.label.visible = true;
+                (state.label.material as THREE.SpriteMaterial).opacity = labelT;
+              } else {
+                state.label.visible = false;
+              }
+            } else {
+              state.label.visible = false;
+            }
+          } else {
             state.spawnStartTime = 0;
+            this.syncIdleNodeLabel(state);
           }
         } else {
           this.syncIdleNodeLabel(state);
@@ -1458,8 +1379,10 @@ export class SpaceScene {
     if (!this.isVisible) return;
 
     const now = performance.now();
+    const time = this.clock.getElapsedTime();
 
     this.controls.update();
+    this.eventParticles.advancePositions(time);
     this.updateFlights(now);
     this.updateNodes(now);
     this.processFlightQueue();
@@ -1501,7 +1424,6 @@ export class SpaceScene {
     this.repoOrbitGeo.dispose();
     this.repoOrbitGeoB.dispose();
     this.repoGlowGeo.dispose();
-    this.flightGeo.dispose();
 
     this.eventParticles.dispose();
 
