@@ -345,6 +345,36 @@ export class SpaceScene {
     return ACTOR_BASE_RADIUS + Math.min(eventCount, 8) * 0.12;
   }
 
+  /** Maps actor event count to 0..1 where 1 event = 0 and 3+ events = 1. */
+  private actorActivityT(eventCount: number): number {
+    return Math.min(Math.max((eventCount - 1) / 2, 0), 1);
+  }
+
+  private actorActivityColors(eventCount: number): {
+    core: THREE.Color;
+    glow: THREE.Color;
+    ring: THREE.Color;
+  } {
+    const t = this.actorActivityT(eventCount);
+    return {
+      core: new THREE.Color().lerpColors(new THREE.Color('#7ec4ff'), new THREE.Color('#0047e6'), t),
+      glow: new THREE.Color().lerpColors(new THREE.Color('#58a6ff'), new THREE.Color('#0066ff'), t),
+      ring: new THREE.Color().lerpColors(new THREE.Color('#79c0ff'), new THREE.Color('#1a7cff'), t),
+    };
+  }
+
+  private applyActorColors(state: NodeState, eventCount: number): void {
+    if (!state.actorMaterials || !state.actorBaseColors) return;
+
+    const colors = this.actorActivityColors(eventCount);
+    state.actorMaterials.core.color.copy(colors.core);
+    state.actorMaterials.glow.color.copy(colors.glow);
+    state.actorMaterials.ring.color.copy(colors.ring);
+    state.actorBaseColors.core.copy(colors.core);
+    state.actorBaseColors.glow.copy(colors.glow);
+    state.actorBaseColors.ring.copy(colors.ring);
+  }
+
   private repoRadius(eventCount: number): number {
     return REPO_BASE_RADIUS + Math.min(eventCount, 10) * 0.1;
   }
@@ -386,8 +416,10 @@ export class SpaceScene {
   } {
     const group = new THREE.Group();
     const radius = this.actorRadius(node.eventCount);
+    const colors = this.actorActivityColors(node.eventCount);
 
     const coreMat = this.actorCoreMat.clone();
+    coreMat.color.copy(colors.core);
     const core = new THREE.Mesh(this.actorCoreGeo, coreMat);
     core.scale.setScalar(radius);
     group.add(core);
@@ -408,11 +440,13 @@ export class SpaceScene {
     }
 
     const glowMat = this.actorGlowMat.clone();
+    glowMat.color.copy(colors.glow);
     const glow = new THREE.Mesh(this.actorGlowGeo, glowMat);
     glow.scale.setScalar(radius * 1.35);
     group.add(glow);
 
     const ringMat = this.actorRingMat.clone();
+    ringMat.color.copy(colors.ring);
     const ring = new THREE.Mesh(this.actorRingGeo, ringMat);
     ring.scale.setScalar(radius * 1.5);
     ring.rotation.x = Math.PI / 2 + 0.4;
@@ -548,6 +582,7 @@ export class SpaceScene {
           const radius = this.actorRadius(node.eventCount);
           existing.baseRadius = radius;
           this.applyActorScales(existing.visual, radius, Boolean(node.avatarUrl));
+          this.applyActorColors(existing, node.eventCount);
         } else if (node.kind === 'repo') {
           const scale = this.repoRadius(node.eventCount);
           existing.baseRadius = scale;
