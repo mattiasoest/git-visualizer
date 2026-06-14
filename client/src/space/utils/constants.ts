@@ -6,6 +6,7 @@ export const REPO_VISUAL = {
   outerShell: 2,
   outerWire: 3,
   innerCore: 4,
+  particle: 5,
 } as const;
 export const REPO_RING_SCALE = [2.15, 2.65] as const;
 export const EVENT_NODE_BASE_RADIUS = 0.75;

@@ -22,6 +22,7 @@ export interface NodeState {
     outerShell: THREE.MeshBasicMaterial;
     outerWire: THREE.MeshBasicMaterial;
     innerCore: THREE.MeshBasicMaterial;
+    particle: THREE.PointsMaterial;
   };
   repoRingMaterials?: THREE.MeshBasicMaterial[];
   repoInnerCore?: THREE.Mesh;

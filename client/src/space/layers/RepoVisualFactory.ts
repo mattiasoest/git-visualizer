@@ -6,11 +6,17 @@ import {
   REPO_RING_SCALE,
   REPO_VISUAL,
 } from '../utils/constants';
+import { softCircleSprite } from '../utils/softSprite';
 import type { GraphNode } from '../utils/graphBuilder';
 import type { NodeState } from '../utils/types';
 
 export class RepoVisualFactory {
   readonly burstRingGeo = new THREE.RingGeometry(1, 1.1, 24);
+  private readonly repoParticleGeo = (() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3));
+    return geo;
+  })();
   private readonly repoOuterCrystalGeo = new THREE.IcosahedronGeometry(1, 1);
   private readonly repoInnerCoreGeo = new THREE.OctahedronGeometry(1, 0);
   private readonly repoOrbitGeo = new THREE.TorusGeometry(1, 0.028, 6, 40);
@@ -135,7 +141,7 @@ export class RepoVisualFactory {
     };
   }
 
-  /** 1 = inner core, 2 = + first glow, 3 = full shell (all glows + outer sphere). */
+  /** 1 = glow particle, 2 = inner core + glow, 3 = full shell (all glows + outer sphere). */
   private repoVisualTier(eventCount: number): number {
     return Math.min(Math.max(eventCount, 1), 3);
   }
@@ -144,11 +150,12 @@ export class RepoVisualFactory {
     const tier = this.repoVisualTier(eventCount);
     const { visual } = state;
 
+    visual.children[REPO_VISUAL.particle].visible = tier === 1;
     visual.children[REPO_VISUAL.atmosphere].visible = tier >= 3;
     visual.children[REPO_VISUAL.innerGlow].visible = tier >= 2;
     visual.children[REPO_VISUAL.outerShell].visible = tier >= 3;
     visual.children[REPO_VISUAL.outerWire].visible = tier >= 3;
-    visual.children[REPO_VISUAL.innerCore].visible = tier >= 1;
+    visual.children[REPO_VISUAL.innerCore].visible = tier >= 2;
   }
 
   private repoOrbitRingCount(eventCount: number): number {
@@ -226,6 +233,7 @@ export class RepoVisualFactory {
     state.repoMaterials.outerShell.color.copy(colors.outerShell);
     state.repoMaterials.outerWire.color.copy(colors.outerWire);
     state.repoMaterials.innerCore.color.copy(colors.innerCore);
+    state.repoMaterials.particle.color.copy(colors.innerCore);
 
     const opacities = this.repoMaterialOpacities();
     state.repoMaterials.atmosphere.opacity = opacities.atmosphere;
@@ -250,6 +258,9 @@ export class RepoVisualFactory {
     visual.children[REPO_VISUAL.outerShell].scale.setScalar(scale);
     visual.children[REPO_VISUAL.outerWire].scale.setScalar(scale * 1.04);
     visual.children[REPO_VISUAL.innerCore].scale.setScalar(scale * 0.5);
+    const particleMat = (visual.children[REPO_VISUAL.particle] as THREE.Points)
+      .material as THREE.PointsMaterial;
+    particleMat.size = scale * 1.55;
 
     if (orbitRings) {
       for (let i = 0; i < orbitRings.length; i++) {
@@ -304,6 +315,20 @@ export class RepoVisualFactory {
     innerCore.scale.setScalar(scale * 0.5);
     group.add(innerCore);
 
+    const particleMat = new THREE.PointsMaterial({
+      size: scale * 1.55,
+      map: softCircleSprite(),
+      color: colors.innerCore,
+      transparent: true,
+      opacity: 0.58,
+      sizeAttenuation: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      alphaTest: 0.01,
+    });
+    const particle = new THREE.Points(this.repoParticleGeo, particleMat);
+    group.add(particle);
+
     return {
       group,
       baseRadius: scale,
@@ -314,6 +339,7 @@ export class RepoVisualFactory {
         outerShell: outerShellMat,
         outerWire: outerWireMat,
         innerCore: innerCoreMat,
+        particle: particleMat,
       },
     };
   }
@@ -325,6 +351,7 @@ export class RepoVisualFactory {
     state.repoMaterials.outerShell.dispose();
     state.repoMaterials.outerWire.dispose();
     state.repoMaterials.innerCore.dispose();
+    state.repoMaterials.particle.dispose();
     state.repoMaterials = undefined;
     this.clearOrbitRings(state);
     state.repoInnerCore = undefined;
@@ -337,5 +364,6 @@ export class RepoVisualFactory {
     this.repoOrbitGeo.dispose();
     this.repoOrbitGeoB.dispose();
     this.repoGlowGeo.dispose();
+    this.repoParticleGeo.dispose();
   }
 }

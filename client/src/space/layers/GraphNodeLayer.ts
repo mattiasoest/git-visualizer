@@ -268,7 +268,7 @@ export class GraphNodeLayer {
         state.visual.rotation.x = Math.sin(time * 0.28) * 0.18;
         state.visual.rotation.z = Math.cos(time * 0.22 + state.position.z * 0.01) * 0.08;
 
-        if (state.repoInnerCore) {
+        if (state.repoInnerCore?.visible) {
           state.repoInnerCore.rotation.y = -time * 1.1;
           state.repoInnerCore.rotation.x = time * 0.75;
         }
