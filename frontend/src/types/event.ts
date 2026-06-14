@@ -34,7 +34,7 @@ export const EVENT_TYPE_COLORS: Record<string, string> = {
   IssueCommentEvent: '#f0883e',
   ForkEvent: '#58a6ff',
   WatchEvent: '#ffd33d',
-  CreateEvent: '#b62324',
+  CreateEvent: '#3ddbd9',
   DeleteEvent: '#f85149',
   ReleaseEvent: '#79c0ff',
   CommitCommentEvent: '#8b949e',
