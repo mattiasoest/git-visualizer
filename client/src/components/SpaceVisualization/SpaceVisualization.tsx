@@ -20,11 +20,15 @@ interface SpaceVisualizationProps {
 export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationProps) {
   const {
     archives,
+    pendingMerge,
     activeEvents,
+    mergeDisplayGraph,
     viewMode,
     selectedArchive,
     selectGalaxy,
     exitDetail,
+    completeMergeAnimation,
+    isMergeAnimating,
   } = useClusterArchives(events);
 
   const graphData = useStableGraphData(activeEvents);
@@ -33,22 +37,22 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
 
   const { navTarget, setNavTarget } = useCosmosNavigation(archives.length);
   const archiveIds = useMemo(() => archives.map((archive) => archive.id), [archives]);
-  const prevArchiveCount = useRef(archives.length);
 
   const navigateCamera = useCallback(
     (target: CosmosNavTarget) => {
-      if (viewMode === 'detail') return;
+      if (viewMode === 'detail' || isMergeAnimating) return;
       sceneRef.current?.navigateTo(target, archiveIds);
     },
-    [archiveIds, sceneRef, viewMode],
+    [archiveIds, sceneRef, viewMode, isMergeAnimating],
   );
 
   const handleNavSelect = useCallback(
     (target: CosmosNavTarget) => {
+      if (isMergeAnimating) return;
       setNavTarget(target);
       navigateCamera(target);
     },
-    [navigateCamera, setNavTarget],
+    [navigateCamera, setNavTarget, isMergeAnimating],
   );
 
   const handleExitDetail = useCallback(() => {
@@ -59,19 +63,11 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
 
   const sceneInitialized = useRef(false);
   useEffect(() => {
-    if (!sceneReady || viewMode !== 'overview') return;
+    if (!sceneReady || viewMode !== 'overview' || isMergeAnimating) return;
     if (sceneInitialized.current) return;
     sceneInitialized.current = true;
     sceneRef.current?.navigateTo('global', archiveIds);
-  }, [sceneReady, viewMode, sceneRef, archiveIds]);
-
-  useEffect(() => {
-    if (!sceneReady || viewMode !== 'overview') return;
-    if (archives.length <= prevArchiveCount.current) return;
-    prevArchiveCount.current = archives.length;
-    setNavTarget('global');
-    sceneRef.current?.navigateTo('global', archiveIds);
-  }, [archives.length, archiveIds, sceneReady, viewMode, sceneRef, setNavTarget]);
+  }, [sceneReady, viewMode, sceneRef, archiveIds, isMergeAnimating]);
 
   const galaxyArchives = useMemo(
     () => archives.map((archive) => ({ id: archive.id, eventCount: archive.events.length })),
@@ -83,15 +79,29 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
       mode: viewMode,
       archives: galaxyArchives,
       detailGraphData: selectedArchive?.graphData,
+      pendingMerge: pendingMerge
+        ? { id: pendingMerge.id, eventCount: pendingMerge.events.length }
+        : null,
+      mergeDisplayGraph: mergeDisplayGraph,
+      archiveCountBeforeMerge: archives.length,
+      onMergeComplete: completeMergeAnimation,
     }),
-    [viewMode, galaxyArchives, selectedArchive],
+    [
+      viewMode,
+      galaxyArchives,
+      selectedArchive,
+      pendingMerge,
+      mergeDisplayGraph,
+      archives.length,
+      completeMergeAnimation,
+    ],
   );
 
   useSpaceEventSync(sceneRef, activeEvents, graphData, activeTypes, cosmos);
 
   return (
     <div className="space-visualization-shell">
-      {viewMode === 'overview' && (
+      {viewMode === 'overview' && !isMergeAnimating && (
         <CosmosNav archives={archives} navTarget={navTarget} onSelect={handleNavSelect} />
       )}
       <div ref={containerRef} className="space-visualization">
@@ -102,7 +112,7 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
           onResumeAutoRotate={resumeAutoRotate}
         />
         {viewMode === 'detail' && <GalaxyBackButton onBack={handleExitDetail} />}
-        {graphData.nodes.length === 0 && archives.length === 0 && <Placeholder />}
+        {graphData.nodes.length === 0 && archives.length === 0 && !isMergeAnimating && <Placeholder />}
       </div>
     </div>
   );

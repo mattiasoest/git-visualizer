@@ -4,10 +4,19 @@ import { eventColor } from '../types/event';
 import type { GraphData } from '../space/utils/graphBuilder';
 import type { CosmosViewMode, GalaxyArchiveRef, SpaceScene } from '../space/SpaceScene';
 
+interface PendingMergeRef {
+  id: string;
+  eventCount: number;
+}
+
 interface CosmosSyncInput {
   mode: CosmosViewMode;
   archives: GalaxyArchiveRef[];
   detailGraphData?: GraphData;
+  pendingMerge: PendingMergeRef | null;
+  mergeDisplayGraph: GraphData | null;
+  archiveCountBeforeMerge: number;
+  onMergeComplete: () => void;
 }
 
 export function useSpaceEventSync(
@@ -20,12 +29,14 @@ export function useSpaceEventSync(
   const seenEventIds = useRef<Set<string>>(new Set());
   const activeTypesRef = useRef(activeTypes);
   const cosmosRef = useRef(cosmos);
+  const mergeStartedIdRef = useRef<string | null>(null);
   activeTypesRef.current = activeTypes;
   cosmosRef.current = cosmos;
 
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene) return;
+    if (!scene || scene.isMergeAnimating()) return;
+    if (cosmosRef.current.pendingMerge) return;
 
     const { mode, archives, detailGraphData } = cosmosRef.current;
     scene.setCosmosLayout({
@@ -35,6 +46,35 @@ export function useSpaceEventSync(
       detailGraphData,
     });
   }, [graphData, cosmos.mode, cosmos.archives, cosmos.detailGraphData, sceneRef]);
+
+  const mergeCompletedRef = useRef(false);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const pending = cosmosRef.current.pendingMerge;
+    if (!scene || !pending || !cosmosRef.current.mergeDisplayGraph) return;
+    if (mergeStartedIdRef.current === pending.id) return;
+
+    mergeCompletedRef.current = false;
+    scene.loadMergeGraph(cosmosRef.current.mergeDisplayGraph);
+    mergeStartedIdRef.current = pending.id;
+    scene.startMergeAnimation(
+      { id: pending.id, eventCount: pending.eventCount },
+      cosmosRef.current.archiveCountBeforeMerge,
+      () => {
+        if (mergeCompletedRef.current) return;
+        mergeCompletedRef.current = true;
+        mergeStartedIdRef.current = null;
+        cosmosRef.current.onMergeComplete();
+      },
+    );
+  }, [
+    cosmos.pendingMerge,
+    cosmos.mergeDisplayGraph,
+    cosmos.archiveCountBeforeMerge,
+    cosmos.onMergeComplete,
+    sceneRef,
+  ]);
 
   const prevModeRef = useRef(cosmos.mode);
   useEffect(() => {
@@ -50,6 +90,8 @@ export function useSpaceEventSync(
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
+    if (scene.isMergeAnimating() || cosmosRef.current.pendingMerge) return;
+
     if (cosmosRef.current.mode === 'detail') {
       scene.syncEventTypeFilterVisibility();
       return;
@@ -84,7 +126,7 @@ export function useSpaceEventSync(
     if (seenEventIds.current.size > activeEvents.length * 2) {
       seenEventIds.current = new Set(activeEvents.map((event) => event.id));
     }
-  }, [graphData, activeEvents, sceneRef, cosmos.mode]);
+  }, [graphData, activeEvents, sceneRef, cosmos.mode, cosmos.pendingMerge]);
 
   useEffect(() => {
     sceneRef.current?.setActiveEventTypes(activeTypes);

@@ -55,6 +55,20 @@ export class LinkLayer {
     }
   }
 
+  applyMergeOpacity(opacity: number): void {
+    const clamped = Math.max(0, Math.min(1, opacity));
+    for (const [key, line] of this.linkLines) {
+      const arrowIdx = key.indexOf('->');
+      if (arrowIdx < 0) continue;
+      const sourceId = key.slice(0, arrowIdx);
+      const baseOpacity = this.linkBaseOpacity.get(key) ?? 0;
+      const visible =
+        !this.nodes.isEndpointSpawnDeferred(sourceId) &&
+        this.nodes.isEventEndpointVisible(sourceId);
+      (line.material as THREE.LineBasicMaterial).opacity = visible ? baseOpacity * clamped : 0;
+    }
+  }
+
   updatePositions(): void {
     for (const [key, line] of this.linkLines) {
       const arrowIdx = key.indexOf('->');

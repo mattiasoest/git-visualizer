@@ -7,9 +7,6 @@ export function useCosmosNavigation(archiveCount: number) {
   const prevArchiveCount = useRef(archiveCount);
 
   useEffect(() => {
-    if (archiveCount > prevArchiveCount.current) {
-      setNavTarget('global');
-    }
     prevArchiveCount.current = archiveCount;
   }, [archiveCount]);
 

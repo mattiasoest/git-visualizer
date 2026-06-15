@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { segmentWorldOffset, totalSegmentCount } from '../utils/galaxyLayout';
+import { archiveWorldOffset } from '../utils/galaxyLayout';
 import { GalaxyVisualFactory, type GalaxyVisual } from './GalaxyVisualFactory';
 
 export interface GalaxyArchiveRef {
@@ -26,7 +26,6 @@ export class GalaxyLayer {
 
   sync(archives: GalaxyArchiveRef[]): void {
     const nextIds = new Set(archives.map((archive) => archive.id));
-    const segments = totalSegmentCount(archives.length);
 
     for (const [id, entry] of this.entries) {
       if (nextIds.has(id)) continue;
@@ -36,12 +35,11 @@ export class GalaxyLayer {
     }
 
     archives.forEach((archive, index) => {
-      const offset = segmentWorldOffset(index, segments);
       const labelText = formatEventCount(archive.eventCount);
       const existing = this.entries.get(archive.id);
 
       if (existing) {
-        existing.visual.group.position.copy(offset);
+        existing.visual.group.scale.setScalar(1);
         return;
       }
 
@@ -50,10 +48,42 @@ export class GalaxyLayer {
         archive.id,
         labelText,
       );
-      visual.group.position.copy(offset);
+      visual.group.position.copy(archiveWorldOffset(index));
       this.group.add(visual.group);
       this.entries.set(archive.id, { archiveId: archive.id, visual });
     });
+  }
+
+  /** Spawn or update a galaxy during merge animation before it is committed to archives. */
+  spawnGalaxyAt(
+    archive: GalaxyArchiveRef,
+    worldPosition: THREE.Vector3,
+    scale: number,
+  ): void {
+    let entry = this.entries.get(archive.id);
+    if (!entry) {
+      const labelText = formatEventCount(archive.eventCount);
+      const visual = this.factory.createGalaxy(archive.eventCount, archive.id, labelText);
+      visual.group.position.copy(worldPosition);
+      this.group.add(visual.group);
+      entry = { archiveId: archive.id, visual };
+      this.entries.set(archive.id, entry);
+    }
+    entry.visual.group.position.copy(worldPosition);
+    entry.visual.group.scale.setScalar(Math.max(scale, 0.001));
+  }
+
+  /** Lock in the newly archived galaxy at its merge slot without moving older ones. */
+  finalizePostMergeArchive(archiveIndex: number, archiveId: string): void {
+    const entry = this.entries.get(archiveId);
+    if (!entry) return;
+    entry.visual.group.position.copy(archiveWorldOffset(archiveIndex));
+    entry.visual.group.scale.setScalar(1);
+  }
+
+  setGalaxyScale(archiveId: string, scale: number): void {
+    const entry = this.entries.get(archiveId);
+    if (entry) entry.visual.group.scale.setScalar(Math.max(scale, 0.001));
   }
 
   getHitTargets(): THREE.Object3D[] {

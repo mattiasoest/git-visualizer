@@ -28,6 +28,9 @@ export class GraphNodeLayer {
   private labelsVisible = true;
   private graphHasNodes = false;
   private applyLinkVisibility: () => void = () => {};
+  private mergeSuckActive = false;
+  private mergeBasePositions = new Map<string, THREE.Vector3>();
+  private readonly mergeOrigin = new THREE.Vector3();
 
   constructor(
     private rootGroup: THREE.Group,
@@ -163,6 +166,60 @@ export class GraphNodeLayer {
     this.applyNodeLabelVisibility();
   }
 
+  beginMergeSuck(): void {
+    this.mergeSuckActive = true;
+    this.mergeBasePositions.clear();
+    for (const [id, state] of this.nodeStates) {
+      if (state.node.kind === 'event') continue;
+      const base = this.positions.get(id)?.clone() ?? state.anchor.position.clone();
+      this.mergeBasePositions.set(id, base);
+    }
+  }
+
+  applyMergeSuck(suckT: number, opacity: number): void {
+    if (!this.mergeSuckActive) return;
+
+    const retain = 1 - suckT;
+    for (const [id, state] of this.nodeStates) {
+      if (state.node.kind === 'event') continue;
+      const base = this.mergeBasePositions.get(id);
+      if (!base) continue;
+
+      state.anchor.position.lerpVectors(base, this.mergeOrigin, suckT);
+      state.position.copy(state.anchor.position);
+
+      if (!this.isSpawnDeferred(state)) {
+        const scale = Math.max(0.001, retain);
+        state.visual.scale.setScalar(scale);
+        this.applyRepoMergeOpacity(state, opacity);
+      }
+    }
+  }
+
+  clearMergeSuck(): void {
+    this.mergeSuckActive = false;
+    this.mergeBasePositions.clear();
+  }
+
+  private applyRepoMergeOpacity(state: NodeState, opacity: number): void {
+    const materials = state.repoMaterials;
+    if (!materials) return;
+
+    const clamped = Math.max(0, Math.min(1, opacity));
+    materials.atmosphere.opacity = clamped * 0.35;
+    materials.innerGlow.opacity = clamped * 0.55;
+    materials.outerShell.opacity = clamped * 0.75;
+    materials.outerWire.opacity = clamped * 0.45;
+    materials.innerCore.opacity = clamped * 0.9;
+    materials.particle.opacity = clamped * 0.8;
+
+    if (state.repoRingMaterials) {
+      for (const material of state.repoRingMaterials) {
+        material.opacity = clamped * 0.5;
+      }
+    }
+  }
+
   updateGraph(data: GraphData, onGraphCleared: () => void): GraphLink[] {
     const activeIds = new Set(data.nodes.map((n) => n.id));
     const linkKeys = new Set(data.links.map((l) => l.key));
@@ -251,6 +308,10 @@ export class GraphNodeLayer {
 
       if (!state.anchor.visible) {
         state.label.visible = false;
+        continue;
+      }
+
+      if (this.mergeSuckActive) {
         continue;
       }
 

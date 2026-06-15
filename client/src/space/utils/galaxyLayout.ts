@@ -3,9 +3,14 @@ import { GALAXY_SPACING } from './constants';
 
 const scratch = new THREE.Vector3();
 
-export function segmentWorldOffset(index: number, totalSegments: number): THREE.Vector3 {
-  const totalWidth = (totalSegments - 1) * GALAXY_SPACING;
-  return scratch.set(index * GALAXY_SPACING - totalWidth / 2, 0, 0).clone();
+/** Fixed X slot for an archived galaxy — positions never shift when new ones are added. */
+export function archiveWorldOffset(archiveIndex: number): THREE.Vector3 {
+  return scratch.set(archiveIndex * GALAXY_SPACING, 0, 0).clone();
+}
+
+/** X slot for the active cluster; moves one step right each time a galaxy is archived. */
+export function activeClusterWorldOffset(archiveCount: number): THREE.Vector3 {
+  return scratch.set(archiveCount * GALAXY_SPACING, 0, 0).clone();
 }
 
 export function archiveSegmentIndex(archiveIndex: number): number {
@@ -14,8 +19,4 @@ export function archiveSegmentIndex(archiveIndex: number): number {
 
 export function activeSegmentIndex(archiveCount: number): number {
   return archiveCount;
-}
-
-export function totalSegmentCount(archiveCount: number): number {
-  return archiveCount + 1;
 }

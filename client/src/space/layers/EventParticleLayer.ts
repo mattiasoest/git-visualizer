@@ -94,6 +94,8 @@ export class EventParticleLayer {
   }[] = [];
   private maxEventsCap = MAX_EVENTS;
   private snapshotMode = false;
+  private mergeSuckT = 0;
+  private readonly mergeOrigin = new THREE.Vector3();
 
   constructor(
     pointSprite: THREE.Texture,
@@ -221,6 +223,14 @@ export class EventParticleLayer {
     return this.hiddenIds.has(id);
   }
 
+  setMergeSuck(t: number): void {
+    this.mergeSuckT = Math.max(0, Math.min(1, t));
+  }
+
+  clearMergeSuck(): void {
+    this.mergeSuckT = 0;
+  }
+
   getSizeScale(id: string): number {
     return this.states.get(id)?.upgraded ? UPGRADED_SIZE_SCALE : 1;
   }
@@ -315,6 +325,9 @@ export class EventParticleLayer {
         : 1;
 
       let scaleMul = 1;
+      if (this.mergeSuckT > 0) {
+        scaleMul *= Math.max(0.001, 1 - this.mergeSuckT);
+      }
       if (spawning) {
         scaleMul = easeOutBack(spawnT);
         if (spawnT >= 1) state.spawnStartTime = 0;
@@ -456,7 +469,10 @@ export class EventParticleLayer {
       worldPos = new THREE.Vector3();
       this.worldPositions.set(id, worldPos);
     }
-    return worldPos.copy(parentPos).add(eventOrbitOffset(id, time, state.orbitPhaseOffset ?? 0));
+    return worldPos.copy(parentPos).add(eventOrbitOffset(id, time, state.orbitPhaseOffset ?? 0)).lerp(
+      this.mergeOrigin,
+      this.mergeSuckT,
+    );
   }
 
   private spawnBurstRing(eventId: string, color: string, upgraded: boolean): void {

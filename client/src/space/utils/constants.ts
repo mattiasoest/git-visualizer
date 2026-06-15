@@ -23,3 +23,7 @@ export const GALAXY_CORE_RADIUS = 8;
 export const MAX_ARCHIVE_EVENTS = 2048;
 export const GALAXY_CAMERA_DISTANCE = 58;
 export const ACTIVE_CLUSTER_CAMERA_DISTANCE = 78;
+export const MERGE_SUCK_MS = 1500;
+export const MERGE_COLLAPSE_MS = 350;
+export const MERGE_EXPLODE_MS = 650;
+export const MERGE_GALAXY_SPAWN_MS = 900;

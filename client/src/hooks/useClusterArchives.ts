@@ -12,44 +12,74 @@ export interface ClusterArchive {
   mergedAt: number;
 }
 
+function allocateGalaxyId(archives: ClusterArchive[], pending: ClusterArchive | null): string {
+  const used = new Set<string>();
+  for (const archive of archives) used.add(archive.id);
+  if (pending) used.add(pending.id);
+  let n = 1;
+  while (used.has(`galaxy-${n}`)) n += 1;
+  return `galaxy-${n}`;
+}
+
 export function useClusterArchives(allEvents: EventView[]) {
   const [archives, setArchives] = useState<ClusterArchive[]>([]);
+  const [pendingMerge, setPendingMerge] = useState<ClusterArchive | null>(null);
   const [viewMode, setViewMode] = useState<CosmosViewMode>('overview');
   const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
-  const nextArchiveId = useRef(1);
+  const mergeCompletedIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    setArchives((prev) => {
-      const archivedIds = new Set(prev.flatMap((archive) => archive.events.map((event) => event.id)));
-      let active = allEvents.filter((event) => !archivedIds.has(event.id));
-      let updated = prev;
-      let changed = false;
+    if (pendingMerge) return;
 
-      while (active.length >= MERGE_EVENT_THRESHOLD) {
-        const toArchive = active.slice(0, MERGE_EVENT_THRESHOLD);
-        active = active.slice(MERGE_EVENT_THRESHOLD);
-        const archive: ClusterArchive = {
-          id: `galaxy-${nextArchiveId.current++}`,
-          events: toArchive,
-          graphData: buildGraph(toArchive),
-          mergedAt: Date.now(),
-        };
-        updated = changed ? [...updated, archive] : [...prev, archive];
-        changed = true;
-      }
+    const archivedIds = new Set(archives.flatMap((archive) => archive.events.map((event) => event.id)));
+    const active = allEvents.filter((event) => !archivedIds.has(event.id));
+    if (active.length < MERGE_EVENT_THRESHOLD) return;
 
-      return changed ? updated : prev;
+    const toArchive = active.slice(0, MERGE_EVENT_THRESHOLD);
+    const id = allocateGalaxyId(archives, null);
+    setPendingMerge({
+      id,
+      events: toArchive,
+      graphData: buildGraph(toArchive),
+      mergedAt: Date.now(),
     });
-  }, [allEvents]);
+  }, [allEvents, archives, pendingMerge]);
+
+  const completeMergeAnimation = useCallback(() => {
+    setPendingMerge((pending) => {
+      if (!pending) return null;
+      if (mergeCompletedIds.current.has(pending.id)) return null;
+      mergeCompletedIds.current.add(pending.id);
+
+      setArchives((prev) => {
+        if (prev.some((archive) => archive.id === pending.id)) return prev;
+        return [...prev, pending];
+      });
+      return null;
+    });
+  }, []);
 
   const archivedEventIds = useMemo(
     () => new Set(archives.flatMap((archive) => archive.events.map((event) => event.id))),
     [archives],
   );
 
+  const pendingEventIds = useMemo(
+    () => new Set(pendingMerge?.events.map((event) => event.id) ?? []),
+    [pendingMerge],
+  );
+
   const activeEvents = useMemo(
-    () => allEvents.filter((event) => !archivedEventIds.has(event.id)),
-    [allEvents, archivedEventIds],
+    () =>
+      allEvents.filter(
+        (event) => !archivedEventIds.has(event.id) && !pendingEventIds.has(event.id),
+      ),
+    [allEvents, archivedEventIds, pendingEventIds],
+  );
+
+  const mergeDisplayGraph = useMemo(
+    () => pendingMerge?.graphData ?? null,
+    [pendingMerge],
   );
 
   const selectedArchive = useMemo(
@@ -58,9 +88,10 @@ export function useClusterArchives(allEvents: EventView[]) {
   );
 
   const selectGalaxy = useCallback((archiveId: string) => {
+    if (pendingMerge) return;
     setSelectedArchiveId(archiveId);
     setViewMode('detail');
-  }, []);
+  }, [pendingMerge]);
 
   const exitDetail = useCallback(() => {
     setViewMode('overview');
@@ -69,11 +100,15 @@ export function useClusterArchives(allEvents: EventView[]) {
 
   return {
     archives,
+    pendingMerge,
     activeEvents,
+    mergeDisplayGraph,
     viewMode,
     selectedArchiveId,
     selectedArchive,
     selectGalaxy,
     exitDetail,
+    completeMergeAnimation,
+    isMergeAnimating: pendingMerge !== null,
   };
 }
