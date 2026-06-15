@@ -2,27 +2,64 @@ import { useEffect, useRef, type RefObject } from 'react';
 import type { EventView } from '../types/event';
 import { eventColor } from '../types/event';
 import type { GraphData } from '../space/utils/graphBuilder';
-import type { SpaceScene } from '../space/SpaceScene';
+import type { CosmosViewMode, GalaxyArchiveRef, SpaceScene } from '../space/SpaceScene';
+
+interface CosmosSyncInput {
+  mode: CosmosViewMode;
+  archives: GalaxyArchiveRef[];
+  detailGraphData?: GraphData;
+}
 
 export function useSpaceEventSync(
   sceneRef: RefObject<SpaceScene | null>,
-  events: EventView[],
+  activeEvents: EventView[],
   graphData: GraphData,
   activeTypes: Set<string>,
+  cosmos: CosmosSyncInput,
 ) {
   const seenEventIds = useRef<Set<string>>(new Set());
   const activeTypesRef = useRef(activeTypes);
+  const cosmosRef = useRef(cosmos);
   activeTypesRef.current = activeTypes;
+  cosmosRef.current = cosmos;
 
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
+    const { mode, archives, detailGraphData } = cosmosRef.current;
+    scene.setCosmosLayout({
+      mode,
+      archives,
+      activeGraphData: graphData,
+      detailGraphData,
+    });
+  }, [graphData, cosmos.mode, cosmos.archives, cosmos.detailGraphData, sceneRef]);
+
+  const prevModeRef = useRef(cosmos.mode);
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    if (prevModeRef.current === 'detail' && cosmos.mode === 'overview') {
+      scene.instantRevealActiveCluster();
+    }
+    prevModeRef.current = cosmos.mode;
+  }, [cosmos.mode, cosmos.archives.length, sceneRef]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (cosmosRef.current.mode === 'detail') {
+      scene.syncEventTypeFilterVisibility();
+      return;
+    }
+
     scene.updateGraph(graphData);
 
     const currentActiveTypes = activeTypesRef.current;
-    for (let i = events.length - 1; i >= 0; i--) {
-      const event = events[i]!;
+    for (let i = activeEvents.length - 1; i >= 0; i--) {
+      const event = activeEvents[i]!;
       if (seenEventIds.current.has(event.id)) continue;
       seenEventIds.current.add(event.id);
 
@@ -44,10 +81,10 @@ export function useSpaceEventSync(
 
     scene.syncEventTypeFilterVisibility();
 
-    if (seenEventIds.current.size > events.length * 2) {
-      seenEventIds.current = new Set(events.map((event) => event.id));
+    if (seenEventIds.current.size > activeEvents.length * 2) {
+      seenEventIds.current = new Set(activeEvents.map((event) => event.id));
     }
-  }, [graphData, events, sceneRef]);
+  }, [graphData, activeEvents, sceneRef, cosmos.mode]);
 
   useEffect(() => {
     sceneRef.current?.setActiveEventTypes(activeTypes);

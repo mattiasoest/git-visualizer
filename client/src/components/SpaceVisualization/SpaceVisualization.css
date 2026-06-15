@@ -1,10 +1,16 @@
-.space-visualization {
+.space-visualization-shell {
   position: relative;
   flex: 1 1 auto;
   width: 100%;
   height: 100%;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
+}
+
+.space-visualization {
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 0%, rgba(60, 30, 120, 0.25) 0%, transparent 55%),
     radial-gradient(ellipse at 80% 90%, rgba(20, 80, 120, 0.15) 0%, transparent 40%),
@@ -17,4 +23,5 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  z-index: 0;
 }

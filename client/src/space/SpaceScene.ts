@@ -3,16 +3,41 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { BackgroundLayer } from './layers/BackgroundLayer';
 import { EventFlightLayer } from './layers/EventFlightLayer';
 import { EventParticleLayer } from './layers/EventParticleLayer';
+import { GalaxyLayer } from './layers/GalaxyLayer';
 import { GraphNodeLayer } from './layers/GraphNodeLayer';
 import { LinkLayer } from './layers/LinkLayer';
 import { RepoVisualFactory } from './layers/RepoVisualFactory';
 import type { GraphData } from './utils/graphBuilder';
+import {
+  ACTIVE_CLUSTER_CAMERA_DISTANCE,
+  GALAXY_CAMERA_DISTANCE,
+} from './utils/constants';
+import { segmentWorldOffset, totalSegmentCount } from './utils/galaxyLayout';
 import { disposeLabelTextures } from './utils/labelSprite';
+import { RaycastPicker } from './utils/raycastPicker';
 import { pointsAttenuationScale } from './utils/sizedPointMaterial';
 import { softCircleSprite } from './utils/softSprite';
 import type { EventFlightPayload } from './utils/types';
 
 export type { EventFlightPayload } from './utils/types';
+
+export type CosmosViewMode = 'overview' | 'detail';
+
+export interface GalaxyArchiveRef {
+  id: string;
+  eventCount: number;
+}
+
+export interface CosmosLayoutInput {
+  mode: CosmosViewMode;
+  archives: GalaxyArchiveRef[];
+  activeGraphData: GraphData;
+  detailGraphData?: GraphData;
+}
+
+const OVERVIEW_CAMERA_DISTANCE_BASE = 95;
+const DETAIL_CAMERA_DISTANCE = 85;
+const CAMERA_LERP_SPEED = 2.5;
 
 export class SpaceScene {
   private container: HTMLElement;
@@ -27,11 +52,34 @@ export class SpaceScene {
 
   private pointSprite = softCircleSprite();
   private repoFactory = new RepoVisualFactory();
-  private eventParticles: EventParticleLayer;
   private background: BackgroundLayer;
-  private nodes: GraphNodeLayer;
-  private links: LinkLayer;
+  private galaxies: GalaxyLayer;
+  private picker: RaycastPicker;
+
+  private activeClusterGroup = new THREE.Group();
+  private detailClusterGroup = new THREE.Group();
+
+  private activeEventParticles: EventParticleLayer;
+  private detailEventParticles: EventParticleLayer;
+  private activeNodes: GraphNodeLayer;
+  private detailNodes: GraphNodeLayer;
+  private activeLinks: LinkLayer;
+  private detailLinks: LinkLayer;
   private flights: EventFlightLayer;
+
+  private viewMode: CosmosViewMode = 'overview';
+  private galaxyTapListener: ((archiveId: string) => void) | null = null;
+
+  private cameraAnim: {
+    fromTarget: THREE.Vector3;
+    toTarget: THREE.Vector3;
+    fromPosition: THREE.Vector3;
+    toPosition: THREE.Vector3;
+    progress: number;
+    dampingWasEnabled: boolean;
+  } | null = null;
+
+  private readonly scratchTarget = new THREE.Vector3();
 
   private onVisibilityChange = (): void => {
     this.isVisible = !document.hidden;
@@ -45,14 +93,22 @@ export class SpaceScene {
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.eventParticles = new EventParticleLayer(this.pointSprite, this.repoFactory.burstRingGeo);
+    this.activeEventParticles = new EventParticleLayer(
+      this.pointSprite,
+      this.repoFactory.burstRingGeo,
+    );
+    this.detailEventParticles = new EventParticleLayer(
+      this.pointSprite,
+      this.repoFactory.burstRingGeo,
+    );
+    this.detailEventParticles.enableSnapshotMode();
 
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0x020014, 0.0035);
 
     const { clientWidth, clientHeight } = container;
     this.camera = new THREE.PerspectiveCamera(55, clientWidth / clientHeight, 0.1, 500);
-    this.camera.position.set(0, 35, 95);
+    this.camera.position.set(0, 35, OVERVIEW_CAMERA_DISTANCE_BASE);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: window.devicePixelRatio < 2,
@@ -69,6 +125,7 @@ export class SpaceScene {
     canvas.style.inset = '0';
     canvas.style.width = '100%';
     canvas.style.height = '100%';
+    canvas.style.zIndex = '0';
 
     this.resize();
 
@@ -81,6 +138,12 @@ export class SpaceScene {
     this.controls.autoRotateSpeed = 0.35;
     this.controls.addEventListener('start', () => {
       this.setAutoRotate(false);
+      this.cameraAnim = null;
+    });
+
+    this.picker = new RaycastPicker(this.renderer.domElement, this.camera);
+    this.picker.setOnTap((archiveId) => {
+      this.galaxyTapListener?.(archiveId);
     });
 
     const ambient = new THREE.AmbientLight(0x6a7aaa, 1.1);
@@ -89,39 +152,186 @@ export class SpaceScene {
     this.background = new BackgroundLayer(this.pointSprite);
     this.background.addTo(this.scene);
 
-    this.nodes = new GraphNodeLayer(this.scene, this.eventParticles, this.repoFactory, this.clock);
-    this.links = new LinkLayer(this.nodes);
-    this.nodes.setLinkVisibilityHandler(() => this.links.applyVisibility());
+    this.galaxies = new GalaxyLayer();
+    this.scene.add(this.galaxies.group);
 
-    this.flights = new EventFlightLayer(this.nodes, this.eventParticles, this.pointSprite);
+    this.activeNodes = new GraphNodeLayer(
+      this.activeClusterGroup,
+      this.activeEventParticles,
+      this.repoFactory,
+      this.clock,
+    );
+    this.detailNodes = new GraphNodeLayer(
+      this.detailClusterGroup,
+      this.detailEventParticles,
+      this.repoFactory,
+      this.clock,
+    );
 
-    this.scene.add(this.links.group);
-    this.scene.add(this.eventParticles.group);
-    this.scene.add(this.flights.group);
+    this.activeLinks = new LinkLayer(this.activeNodes);
+    this.detailLinks = new LinkLayer(this.detailNodes);
+    this.activeNodes.setLinkVisibilityHandler(() => this.activeLinks.applyVisibility());
+    this.detailNodes.setLinkVisibilityHandler(() => this.detailLinks.applyVisibility());
+
+    this.flights = new EventFlightLayer(this.activeNodes, this.activeEventParticles, this.pointSprite);
+
+    this.activeClusterGroup.add(this.activeLinks.group);
+    this.activeClusterGroup.add(this.activeEventParticles.group);
+    this.activeClusterGroup.add(this.flights.group);
+
+    this.detailClusterGroup.add(this.detailLinks.group);
+    this.detailClusterGroup.add(this.detailEventParticles.group);
+
+    this.scene.add(this.activeClusterGroup);
+    this.scene.add(this.detailClusterGroup);
+    this.detailClusterGroup.visible = false;
 
     document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.renderer.setAnimationLoop(this.animate);
   }
 
+  setCosmosLayout(input: CosmosLayoutInput): void {
+    const { mode, archives, activeGraphData, detailGraphData } = input;
+    const prevMode = this.viewMode;
+    this.viewMode = mode;
+
+    this.galaxies.sync(archives);
+    this.updateActiveClusterPosition(archives.length);
+
+    const activeLinks = this.activeNodes.updateGraph(activeGraphData, () => this.flights.clear());
+    this.activeLinks.syncLinks(activeLinks);
+
+    if (mode === 'detail' && detailGraphData) {
+      this.activeClusterGroup.visible = false;
+      this.galaxies.group.visible = false;
+      this.detailClusterGroup.visible = true;
+
+      const detailLinks = this.detailNodes.updateGraph(detailGraphData, () => {});
+      this.detailLinks.syncLinks(detailLinks);
+      this.detailNodes.instantRevealAllEvents();
+
+      this.picker.setTargets([], false);
+      if (prevMode !== 'detail') {
+        this.focusCamera(this.scratchTarget.set(0, 0, 0), DETAIL_CAMERA_DISTANCE, true);
+      }
+    } else {
+      this.activeClusterGroup.visible = true;
+      this.galaxies.group.visible = archives.length > 0;
+      this.detailClusterGroup.visible = false;
+
+      this.picker.setTargets(this.galaxies.getHitTargets(), archives.length > 0);
+    }
+
+    this.updateOrbitLimits(archives.length);
+  }
+
+  onGalaxyTap(listener: ((archiveId: string) => void) | null): void {
+    this.galaxyTapListener = listener;
+  }
+
   updateGraph(data: GraphData): void {
-    const links = this.nodes.updateGraph(data, () => this.flights.clear());
-    this.links.syncLinks(links);
+    const links = this.activeNodes.updateGraph(data, () => this.flights.clear());
+    this.activeLinks.syncLinks(links);
   }
 
   enqueueEventFlight(payload: EventFlightPayload): void {
+    if (this.viewMode === 'detail') return;
     this.flights.enqueue(payload);
   }
 
   setActiveEventTypes(types: Set<string>): void {
-    this.nodes.setActiveEventTypes(types);
+    this.activeNodes.setActiveEventTypes(types);
+    this.detailNodes.setActiveEventTypes(types);
   }
 
   syncEventTypeFilterVisibility(): void {
-    this.nodes.syncEventTypeFilterVisibility();
+    this.activeNodes.syncEventTypeFilterVisibility();
+    if (this.viewMode === 'detail') {
+      this.detailNodes.syncEventTypeFilterVisibility();
+    }
   }
 
   instantRevealEvent(eventId: string): void {
-    this.nodes.instantRevealEvent(eventId);
+    this.activeNodes.instantRevealEvent(eventId);
+  }
+
+  instantRevealActiveCluster(): void {
+    this.activeNodes.instantRevealAllEvents();
+  }
+
+  focusGlobal(archiveCount: number, immediate = false): void {
+    const distance = OVERVIEW_CAMERA_DISTANCE_BASE + archiveCount * 25;
+    this.updateOrbitLimits(archiveCount);
+    this.focusCamera(this.scratchTarget.set(0, 0, 0), distance, !immediate);
+  }
+
+  focusGalaxy(archiveIndex: number, archiveCount: number, immediate = false): void {
+    const position = segmentWorldOffset(archiveIndex, totalSegmentCount(archiveCount));
+    this.focusCamera(position, GALAXY_CAMERA_DISTANCE, !immediate);
+  }
+
+  focusActiveCluster(_archiveCount: number, immediate = false): void {
+    const position = new THREE.Vector3();
+    this.activeClusterGroup.getWorldPosition(position);
+    this.focusCamera(position, ACTIVE_CLUSTER_CAMERA_DISTANCE, !immediate);
+  }
+
+  /** Focus camera on a nav target (used by overview navigation buttons). */
+  navigateTo(target: 'global' | 'active' | string, archiveIds: string[]): void {
+    const archiveCount = archiveIds.length;
+    if (target === 'global') {
+      this.focusGlobal(archiveCount, true);
+      return;
+    }
+    if (target === 'active') {
+      this.focusActiveCluster(archiveCount, true);
+      return;
+    }
+    if (this.galaxies.getWorldPositionForArchive(target, this.scratchTarget)) {
+      this.focusCamera(this.scratchTarget, GALAXY_CAMERA_DISTANCE, false);
+      return;
+    }
+    const index = archiveIds.indexOf(target);
+    if (index >= 0) {
+      this.focusGalaxy(index, archiveCount, true);
+      return;
+    }
+    this.focusGlobal(archiveCount, true);
+  }
+
+  /** @deprecated Use focusGlobal */
+  focusOverview(archiveCount: number): void {
+    this.focusGlobal(archiveCount);
+  }
+
+  focusCamera(target: THREE.Vector3, distance: number, animate: boolean): void {
+    const desiredPosition = new THREE.Vector3(
+      target.x,
+      target.y + 35,
+      target.z + distance,
+    );
+
+    this.setAutoRotate(false);
+
+    if (!animate) {
+      this.controls.enableDamping = false;
+      this.controls.target.copy(target);
+      this.camera.position.copy(desiredPosition);
+      this.cameraAnim = null;
+      this.controls.update();
+      this.controls.enableDamping = true;
+      return;
+    }
+
+    this.cameraAnim = {
+      fromTarget: this.controls.target.clone(),
+      toTarget: target.clone(),
+      fromPosition: this.camera.position.clone(),
+      toPosition: desiredPosition,
+      progress: 0,
+      dampingWasEnabled: this.controls.enableDamping,
+    };
+    this.controls.enableDamping = false;
   }
 
   getAutoRotate(): boolean {
@@ -144,12 +354,13 @@ export class SpaceScene {
   }
 
   getLabelsVisible(): boolean {
-    return this.nodes.getLabelsVisible();
+    return this.activeNodes.getLabelsVisible();
   }
 
   setLabelsVisible(visible: boolean): void {
-    if (this.nodes.getLabelsVisible() === visible) return;
-    this.nodes.setLabelsVisible(visible);
+    if (this.activeNodes.getLabelsVisible() === visible) return;
+    this.activeNodes.setLabelsVisible(visible);
+    this.detailNodes.setLabelsVisible(visible);
     for (const listener of this.labelVisibilityListeners) {
       listener(visible);
     }
@@ -173,20 +384,62 @@ export class SpaceScene {
     this.renderer.setSize(width, height, false);
   }
 
+  private updateOrbitLimits(archiveCount: number): void {
+    this.controls.maxDistance = 180 + archiveCount * 40;
+  }
+
+  private updateActiveClusterPosition(archiveCount: number): void {
+    const segments = totalSegmentCount(archiveCount);
+    const activeIndex = archiveCount;
+    const offset = segmentWorldOffset(activeIndex, segments);
+    this.activeClusterGroup.position.copy(offset);
+  }
+
+  private updateCameraAnimation(delta: number): boolean {
+    if (!this.cameraAnim) return false;
+
+    this.cameraAnim.progress = Math.min(this.cameraAnim.progress + delta * CAMERA_LERP_SPEED, 1);
+    const t = 1 - (1 - this.cameraAnim.progress) ** 3;
+
+    this.controls.target.lerpVectors(this.cameraAnim.fromTarget, this.cameraAnim.toTarget, t);
+    this.camera.position.lerpVectors(this.cameraAnim.fromPosition, this.cameraAnim.toPosition, t);
+
+    if (this.cameraAnim.progress >= 1) {
+      this.controls.enableDamping = this.cameraAnim.dampingWasEnabled;
+      this.controls.update();
+      this.cameraAnim = null;
+    }
+
+    return true;
+  }
+
   private animate = (): void => {
     if (!this.isVisible) return;
 
     const now = performance.now();
     const time = this.clock.getElapsedTime();
+    const delta = this.clock.getDelta();
 
-    this.controls.update();
-    this.eventParticles.advancePositions(time);
-    this.flights.update(now);
-    this.nodes.update(now, pointsAttenuationScale(this.renderer));
-    this.links.updatePositions();
-    this.flights.processQueue();
+    const cameraAnimating = this.updateCameraAnimation(delta);
+    if (!cameraAnimating) {
+      this.controls.update();
+    }
+    this.picker.updateHover();
+
+    if (this.viewMode === 'detail') {
+      this.detailEventParticles.advancePositions(time);
+      this.detailNodes.update(now, pointsAttenuationScale(this.renderer));
+      this.detailLinks.updatePositions();
+    } else {
+      this.activeEventParticles.advancePositions(time);
+      this.flights.update(now);
+      this.activeNodes.update(now, pointsAttenuationScale(this.renderer));
+      this.activeLinks.updatePositions();
+      this.flights.processQueue();
+      this.galaxies.update(time);
+    }
+
     this.background.update(time);
-
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -194,13 +447,18 @@ export class SpaceScene {
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.renderer.setAnimationLoop(null);
     this.controls.dispose();
+    this.picker.dispose();
 
     this.flights.dispose();
-    this.nodes.dispose();
-    this.links.dispose();
+    this.activeNodes.dispose();
+    this.detailNodes.dispose();
+    this.activeLinks.dispose();
+    this.detailLinks.dispose();
+    this.galaxies.dispose();
     this.background.dispose();
     this.repoFactory.disposeSharedGeometries();
-    this.eventParticles.dispose();
+    this.activeEventParticles.dispose();
+    this.detailEventParticles.dispose();
     disposeLabelTextures();
 
     this.renderer.dispose();

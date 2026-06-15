@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MAX_ARCHIVE_EVENTS } from '../utils/constants';
 import { eventOrbitOffset, resolveEventOrbitPhaseOffset } from '../utils/clusterLayout';
 import {
   createSizedPointsMaterial,
@@ -91,6 +92,8 @@ export class EventParticleLayer {
     startTime: number;
     eventId: string;
   }[] = [];
+  private maxEventsCap = MAX_EVENTS;
+  private snapshotMode = false;
 
   constructor(
     pointSprite: THREE.Texture,
@@ -247,6 +250,24 @@ export class EventParticleLayer {
     this.hiddenIds = ids;
   }
 
+  enableSnapshotMode(): void {
+    this.snapshotMode = true;
+    this.maxEventsCap = MAX_ARCHIVE_EVENTS;
+  }
+
+  disableSnapshotMode(): void {
+    this.snapshotMode = false;
+    this.maxEventsCap = MAX_EVENTS;
+    this.states.clear();
+    this.order = [];
+    this.worldPositions.clear();
+    this.hiddenIds.clear();
+  }
+
+  isSnapshotMode(): boolean {
+    return this.snapshotMode;
+  }
+
   advancePositions(time: number): void {
     for (let i = 0; i < this.order.length; i++) {
       const id = this.order[i]!;
@@ -367,7 +388,7 @@ export class EventParticleLayer {
   }
 
   private ensureNormalBuffers(count: number): void {
-    const capped = Math.min(Math.max(count, 1), MAX_EVENTS);
+    const capped = Math.min(Math.max(count, 1), this.maxEventsCap);
     if (this.corePositions.length >= capped * 3 && count > 0) return;
 
     this.corePositions = new Float32Array(capped * 3);
@@ -386,7 +407,7 @@ export class EventParticleLayer {
   }
 
   private ensureUpgradedBuffers(layer: UpgradedPointLayer, count: number): void {
-    const capped = Math.min(Math.max(count, 1), MAX_EVENTS);
+    const capped = Math.min(Math.max(count, 1), this.maxEventsCap);
     if (layer.positions.length >= capped * 3 && count > 0) return;
 
     layer.positions = new Float32Array(capped * 3);

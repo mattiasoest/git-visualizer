@@ -1,0 +1,30 @@
+.galaxy-back-btn {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  z-index: 2;
+  border: 1px solid rgba(120, 180, 255, 0.35);
+  background: rgba(12, 16, 48, 0.85);
+  color: #a8c7ff;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.galaxy-back-btn:hover {
+  border-color: rgba(120, 180, 255, 0.6);
+  background: rgba(20, 28, 72, 0.92);
+  box-shadow: 0 0 16px rgba(120, 180, 255, 0.2);
+}
+
+@media (max-width: 480px) {
+  .galaxy-back-btn {
+    left: 0.75rem;
+    top: 0.75rem;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.7rem;
+  }
+}

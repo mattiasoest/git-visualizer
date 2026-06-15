@@ -30,7 +30,7 @@ export class GraphNodeLayer {
   private applyLinkVisibility: () => void = () => {};
 
   constructor(
-    private scene: THREE.Scene,
+    private rootGroup: THREE.Group,
     private eventParticles: EventParticleLayer,
     private repoFactory: RepoVisualFactory,
     private clock: THREE.Clock,
@@ -140,6 +140,27 @@ export class GraphNodeLayer {
     this.eventParticles.completeSpawn(target.node.id);
     this.markEventSpawned(targetId);
     this.syncIdleNodeLabel(target);
+  }
+
+  instantRevealAllEvents(): void {
+    for (const state of this.nodeStates.values()) {
+      if (state.node.kind === 'repo') {
+        this.completeNodeSpawn(state);
+        continue;
+      }
+      if (state.node.kind !== 'event') continue;
+      const repoId = state.node.parentRepoId;
+      if (repoId) {
+        const repo = this.nodeStates.get(repoId);
+        if (repo) this.completeNodeSpawn(repo);
+      }
+      this.completeNodeSpawn(state);
+      this.eventParticles.completeSpawn(state.node.id);
+      this.markEventSpawned(state.node.id);
+    }
+    this.syncEventParticles();
+    this.applyLinkVisibility();
+    this.applyNodeLabelVisibility();
   }
 
   updateGraph(data: GraphData, onGraphCleared: () => void): GraphLink[] {
@@ -480,7 +501,7 @@ export class GraphNodeLayer {
       this.repoFactory.disposeMaterials(state);
     }
     this.disposeNodeLabel(state);
-    this.scene.remove(state.anchor);
+    this.rootGroup.remove(state.anchor);
   }
 
   private updateLabelSprite(state: NodeState, text: string): void {
@@ -523,7 +544,7 @@ export class GraphNodeLayer {
 
     const anchor = new THREE.Group();
     anchor.position.copy(position);
-    this.scene.add(anchor);
+    this.rootGroup.add(anchor);
 
     let visual: THREE.Group;
     let baseRadius: number;

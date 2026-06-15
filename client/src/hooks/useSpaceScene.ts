@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SpaceScene } from '../space/SpaceScene';
 
-export function useSpaceScene() {
+export function useSpaceScene(onGalaxyTap?: (archiveId: string) => void) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SpaceScene | null>(null);
   const [autoRotating, setAutoRotating] = useState(true);
   const [labelsVisible, setLabelsVisible] = useState(true);
+  const [sceneReady, setSceneReady] = useState(false);
+  const onGalaxyTapRef = useRef(onGalaxyTap);
+  onGalaxyTapRef.current = onGalaxyTap;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -13,6 +16,10 @@ export function useSpaceScene() {
 
     const scene = new SpaceScene(container);
     sceneRef.current = scene;
+    setSceneReady(true);
+    scene.onGalaxyTap((archiveId) => {
+      onGalaxyTapRef.current?.(archiveId);
+    });
     setAutoRotating(scene.getAutoRotate());
     setLabelsVisible(scene.getLabelsVisible());
     const unsubscribeAutoRotate = scene.onAutoRotateChange(setAutoRotating);
@@ -57,6 +64,7 @@ export function useSpaceScene() {
       }
       scene.dispose();
       sceneRef.current = null;
+      setSceneReady(false);
     };
   }, []);
 
@@ -75,5 +83,6 @@ export function useSpaceScene() {
     labelsVisible,
     toggleLabels,
     resumeAutoRotate,
+    sceneReady,
   };
 }
