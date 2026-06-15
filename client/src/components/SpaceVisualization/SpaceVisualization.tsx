@@ -37,6 +37,35 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
 
   const { navTarget, setNavTarget } = useCosmosNavigation(archives.length);
   const archiveIds = useMemo(() => archives.map((archive) => archive.id), [archives]);
+  const prevArchiveCount = useRef(archives.length);
+  const lastMergedGalaxyIdRef = useRef<string | null>(null);
+  const navTargetAtMergeStartRef = useRef<CosmosNavTarget | null>(null);
+  const prevPendingMergeRef = useRef(pendingMerge);
+
+  useEffect(() => {
+    if (pendingMerge && !prevPendingMergeRef.current) {
+      navTargetAtMergeStartRef.current = navTarget;
+      lastMergedGalaxyIdRef.current = pendingMerge.id;
+    }
+    prevPendingMergeRef.current = pendingMerge;
+  }, [pendingMerge, navTarget]);
+
+  useEffect(() => {
+    if (viewMode !== 'overview' || isMergeAnimating) return;
+    if (archives.length <= prevArchiveCount.current) return;
+
+    const wasOnActiveCluster = navTargetAtMergeStartRef.current === 'active';
+    navTargetAtMergeStartRef.current = null;
+
+    const newGalaxyId =
+      lastMergedGalaxyIdRef.current ?? archives[archives.length - 1]?.id ?? null;
+    lastMergedGalaxyIdRef.current = null;
+    prevArchiveCount.current = archives.length;
+
+    if (wasOnActiveCluster && newGalaxyId) {
+      setNavTarget(newGalaxyId);
+    }
+  }, [archives.length, viewMode, isMergeAnimating, setNavTarget, archives]);
 
   const navigateCamera = useCallback(
     (target: CosmosNavTarget) => {
