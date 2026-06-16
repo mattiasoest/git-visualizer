@@ -73,11 +73,10 @@ export class GalaxyLayer {
     entry.visual.group.scale.setScalar(Math.max(scale, 0.001));
   }
 
-  /** Lock in the newly archived galaxy at its merge slot without moving older ones. */
-  finalizePostMergeArchive(archiveIndex: number, archiveId: string): void {
+  /** Lock in the newly archived galaxy at its merge position without moving it. */
+  finalizePostMergeArchive(_archiveIndex: number, archiveId: string): void {
     const entry = this.entries.get(archiveId);
     if (!entry) return;
-    entry.visual.group.position.copy(archiveWorldOffset(archiveIndex));
     entry.visual.group.scale.setScalar(1);
   }
 

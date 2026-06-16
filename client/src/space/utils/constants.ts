@@ -18,7 +18,9 @@ export const SPAWN_DEFERRED = -1;
 export const MAX_ACTIVE_FLIGHTS = 24;
 export const EVENT_PARTICLE_SIZE = EVENT_NODE_BASE_RADIUS * 2.2;
 export const MERGE_EVENT_THRESHOLD = 1500;
-export const GALAXY_SPACING = 60;
+export const GALAXY_SPACING = 30;
+/** Gap between the newest archived galaxy and the active cluster (GALAXY_SPACING * 2.5). */
+export const ACTIVE_CLUSTER_GAP = GALAXY_SPACING * 2.5;
 export const GALAXY_CORE_RADIUS = 8;
 export const MAX_ARCHIVE_EVENTS = 2048;
 export const GALAXY_CAMERA_DISTANCE = 58;

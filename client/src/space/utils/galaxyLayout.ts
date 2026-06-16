@@ -1,16 +1,19 @@
 import * as THREE from 'three';
-import { GALAXY_SPACING } from './constants';
+import { ACTIVE_CLUSTER_GAP } from './constants';
 
 const scratch = new THREE.Vector3();
 
-/** Fixed X slot for an archived galaxy — positions never shift when new ones are added. */
+/**
+ * Fixed X slot for an archived galaxy — each forms where the active cluster was
+ * before merge, so positions never shift when new ones are added.
+ */
 export function archiveWorldOffset(archiveIndex: number): THREE.Vector3 {
-  return scratch.set(archiveIndex * GALAXY_SPACING, 0, 0).clone();
+  return scratch.set(archiveIndex * ACTIVE_CLUSTER_GAP, 0, 0).clone();
 }
 
-/** X slot for the active cluster; moves one step right each time a galaxy is archived. */
+/** X slot for the active cluster; one full gap beyond the newest galaxy. */
 export function activeClusterWorldOffset(archiveCount: number): THREE.Vector3 {
-  return scratch.set(archiveCount * GALAXY_SPACING, 0, 0).clone();
+  return scratch.set(archiveCount * ACTIVE_CLUSTER_GAP, 0, 0).clone();
 }
 
 export function archiveSegmentIndex(archiveIndex: number): number {
