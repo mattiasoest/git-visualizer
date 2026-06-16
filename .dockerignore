@@ -1,0 +1,7 @@
+.git
+.idea
+.vscode
+**/target
+**/node_modules
+client/dist
+server/src/main/resources/static
