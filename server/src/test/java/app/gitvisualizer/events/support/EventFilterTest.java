@@ -10,7 +10,7 @@ import app.gitvisualizer.events.client.model.RepoRef;
 
 class EventFilterTest {
 
-	private final EventFilter filter = new EventFilter();
+	private final EventFilter filter = new EventFilter(true);
 
 	@Test
 	void excludesBotActorEvents() {
@@ -33,6 +33,19 @@ class EventFilterTest {
 		GitHubEvent noActor = new GitHubEvent("1", "PushEvent", null, null, null, null, true, null);
 
 		assertThat(filter.isIncluded(noActor)).isTrue();
+	}
+
+	@Test
+	void includesBotActorEventsWhenExclusionDisabled() {
+		EventFilter inclusiveFilter = new EventFilter(false);
+		GitHubEvent botEvent = event("1", "dependabot[bot]");
+		GitHubEvent humanEvent = event("2", "octocat");
+
+		assertThat(inclusiveFilter.isIncluded(botEvent)).isTrue();
+		assertThat(inclusiveFilter.isIncluded(humanEvent)).isTrue();
+		assertThat(inclusiveFilter.filterIncluded(java.util.List.of(botEvent, humanEvent)))
+				.extracting(GitHubEvent::id)
+				.containsExactly("1", "2");
 	}
 
 	private static GitHubEvent event(String id, String login) {

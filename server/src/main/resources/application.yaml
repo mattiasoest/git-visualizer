@@ -8,6 +8,10 @@ spring:
     cors:
       allowed-origins: http://localhost:5173
 
+events:
+  filter:
+    exclude-bot-events: false
+
 github:
   api:
     base-url: https://api.github.com
