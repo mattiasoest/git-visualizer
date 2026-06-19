@@ -8,6 +8,7 @@ import { useStableGraphData } from '../../hooks/useStableGraphData';
 import type { CosmosNavTarget } from '../../hooks/useCosmosNavigation';
 import { Controls } from '../Controls/Controls';
 import { CosmosNav } from '../CosmosNav/CosmosNav';
+import { ClusterLoadingOverlay } from '../ClusterLoadingOverlay/ClusterLoadingOverlay';
 import { GalaxyBackButton } from '../GalaxyBackButton/GalaxyBackButton';
 import { Placeholder } from '../Placeholder/Placeholder';
 import './SpaceVisualization.css';
@@ -27,7 +28,9 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
     selectedArchive,
     selectGalaxy,
     exitDetail,
+    completeDetailPrepare,
     completeMergeAnimation,
+    isPreparingDetail,
     isMergeAnimating,
   } = useClusterArchives(events);
 
@@ -114,6 +117,7 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
       mergeDisplayGraph: mergeDisplayGraph,
       archiveCountBeforeMerge: archives.length,
       onMergeComplete: completeMergeAnimation,
+      onDetailLayoutReady: completeDetailPrepare,
     }),
     [
       viewMode,
@@ -123,6 +127,7 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
       mergeDisplayGraph,
       archives.length,
       completeMergeAnimation,
+      completeDetailPrepare,
     ],
   );
 
@@ -141,6 +146,7 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
           onResumeAutoRotate={resumeAutoRotate}
         />
         {viewMode === 'detail' && <GalaxyBackButton onBack={handleExitDetail} />}
+        {isPreparingDetail && <ClusterLoadingOverlay />}
         {graphData.nodes.length === 0 && archives.length === 0 && !isMergeAnimating && <Placeholder />}
       </div>
     </div>

@@ -26,6 +26,7 @@ export function useClusterArchives(allEvents: EventView[]) {
   const [pendingMerge, setPendingMerge] = useState<ClusterArchive | null>(null);
   const [viewMode, setViewMode] = useState<CosmosViewMode>('overview');
   const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
+  const [isPreparingDetail, setIsPreparingDetail] = useState(false);
   const mergeCompletedIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -89,11 +90,17 @@ export function useClusterArchives(allEvents: EventView[]) {
 
   const selectGalaxy = useCallback((archiveId: string) => {
     if (pendingMerge) return;
+    setIsPreparingDetail(true);
     setSelectedArchiveId(archiveId);
     setViewMode('detail');
   }, [pendingMerge]);
 
+  const completeDetailPrepare = useCallback(() => {
+    setIsPreparingDetail(false);
+  }, []);
+
   const exitDetail = useCallback(() => {
+    setIsPreparingDetail(false);
     setViewMode('overview');
     setSelectedArchiveId(null);
   }, []);
@@ -108,7 +115,9 @@ export function useClusterArchives(allEvents: EventView[]) {
     selectedArchive,
     selectGalaxy,
     exitDetail,
+    completeDetailPrepare,
     completeMergeAnimation,
+    isPreparingDetail,
     isMergeAnimating: pendingMerge !== null,
   };
 }

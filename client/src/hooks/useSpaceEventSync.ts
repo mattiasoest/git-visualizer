@@ -17,6 +17,7 @@ interface CosmosSyncInput {
   mergeDisplayGraph: GraphData | null;
   archiveCountBeforeMerge: number;
   onMergeComplete: () => void;
+  onDetailLayoutReady?: () => void;
 }
 
 export function useSpaceEventSync(
@@ -38,13 +39,32 @@ export function useSpaceEventSync(
     if (!scene || scene.isMergeAnimating()) return;
     if (cosmosRef.current.pendingMerge) return;
 
-    const { mode, archives, detailGraphData } = cosmosRef.current;
-    scene.setCosmosLayout({
-      mode,
-      archives,
-      activeGraphData: graphData,
-      detailGraphData,
-    });
+    const { mode, archives, detailGraphData, onDetailLayoutReady } = cosmosRef.current;
+
+    const applyLayout = () => {
+      scene.setCosmosLayout({
+        mode,
+        archives,
+        activeGraphData: graphData,
+        detailGraphData,
+      });
+      if (mode === 'detail' && detailGraphData) {
+        onDetailLayoutReady?.();
+      }
+    };
+
+    if (mode === 'detail' && detailGraphData) {
+      let innerRaf = 0;
+      const outerRaf = requestAnimationFrame(() => {
+        innerRaf = requestAnimationFrame(applyLayout);
+      });
+      return () => {
+        cancelAnimationFrame(outerRaf);
+        if (innerRaf) cancelAnimationFrame(innerRaf);
+      };
+    }
+
+    applyLayout();
   }, [graphData, cosmos.mode, cosmos.archives, cosmos.detailGraphData, sceneRef]);
 
   const mergeCompletedRef = useRef(false);
