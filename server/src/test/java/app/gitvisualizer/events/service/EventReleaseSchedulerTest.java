@@ -29,12 +29,10 @@ import app.gitvisualizer.events.client.model.GitHubEvent;
 import app.gitvisualizer.events.client.model.RepoRef;
 import app.gitvisualizer.events.dto.EventView;
 import app.gitvisualizer.events.support.EventMapper;
-import app.gitvisualizer.events.support.EventRingBuffer;
 
 class EventReleaseSchedulerTest {
 
 	private EventBroadcaster broadcaster;
-	private EventRingBuffer ringBuffer;
 	private EventMapper eventMapper;
 	private RecordingTaskScheduler taskScheduler;
 	private EventReleaseScheduler scheduler;
@@ -42,7 +40,6 @@ class EventReleaseSchedulerTest {
 	@BeforeEach
 	void setUp() {
 		broadcaster = mock(EventBroadcaster.class);
-		ringBuffer = mock(EventRingBuffer.class);
 		eventMapper = mock(EventMapper.class);
 		when(eventMapper.toView(any(GitHubEvent.class))).thenAnswer(invocation -> {
 			GitHubEvent event = invocation.getArgument(0);
@@ -53,7 +50,6 @@ class EventReleaseSchedulerTest {
 		scheduler = new EventReleaseScheduler(
 				taskScheduler,
 				broadcaster,
-				ringBuffer,
 				eventMapper,
 				new GitHubApiProperties(
 						"https://api.github.com",
@@ -70,7 +66,7 @@ class EventReleaseSchedulerTest {
 		scheduler.enqueueBatch(List.of(), 10);
 
 		assertThat(taskScheduler.scheduledTasks).isEmpty();
-		verifyNoInteractions(broadcaster, ringBuffer);
+		verifyNoInteractions(broadcaster);
 	}
 
 	@Test
@@ -99,7 +95,6 @@ class EventReleaseSchedulerTest {
 		verify(broadcaster, times(1)).broadcast(view("3", "2026-06-13T12:00:03Z"));
 		verify(broadcaster, times(1)).broadcast(view("4", "2026-06-13T12:00:04Z"));
 		verify(broadcaster, times(1)).broadcast(view("5", "2026-06-13T12:00:05Z"));
-		verify(ringBuffer, times(5)).prepend(any(GitHubEvent.class));
 	}
 
 	@Test
@@ -113,12 +108,10 @@ class EventReleaseSchedulerTest {
 
 		verify(broadcaster, times(1)).broadcast(view("1", "2026-06-13T12:00:01Z"));
 		verify(broadcaster, times(1)).broadcast(view("2", "2026-06-13T12:00:02Z"));
-		verify(ringBuffer).prepend(githubEvent("1", "2026-06-13T12:00:01Z"));
-		verify(ringBuffer).prepend(githubEvent("2", "2026-06-13T12:00:02Z"));
 	}
 
 	@Test
-	void replayToEmitterDripsToSingleEmitterWithoutTouchingRingBuffer() {
+	void replayToEmitterDripsToSingleEmitterWithoutBroadcasting() {
 		SseEmitter emitter = mock(SseEmitter.class);
 		List<EventView> events = List.of(
 				view("2", "2026-06-13T12:00:02Z"),
@@ -130,7 +123,6 @@ class EventReleaseSchedulerTest {
 		verify(broadcaster).sendToEmitter(emitter, view("1", "2026-06-13T12:00:01Z"));
 		verify(broadcaster).sendToEmitter(emitter, view("2", "2026-06-13T12:00:02Z"));
 		verify(broadcaster, never()).broadcast(any());
-		verifyNoInteractions(ringBuffer);
 	}
 
 	@Test
@@ -172,7 +164,6 @@ class EventReleaseSchedulerTest {
 		EventReleaseScheduler immediateScheduler = new EventReleaseScheduler(
 				taskScheduler,
 				broadcaster,
-				ringBuffer,
 				eventMapper,
 				new GitHubApiProperties(
 						"https://api.github.com",
@@ -192,8 +183,6 @@ class EventReleaseSchedulerTest {
 		assertThat(taskScheduler.scheduledTasks).isEmpty();
 		verify(broadcaster).broadcast(view("2", "2026-06-13T12:00:02Z"));
 		verify(broadcaster).broadcast(view("1", "2026-06-13T12:00:01Z"));
-		verify(ringBuffer).prepend(githubEvent("2", "2026-06-13T12:00:02Z"));
-		verify(ringBuffer).prepend(githubEvent("1", "2026-06-13T12:00:01Z"));
 	}
 
 	private static EventView view(String id, String createdAt) {

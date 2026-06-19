@@ -21,7 +21,7 @@ public class EventStreamService {
 		this.releaseScheduler = releaseScheduler;
 	}
 
-	public SseEmitter subscribeToStream(int replay) throws IOException {
+	public SseEmitter subscribeToStream() throws IOException {
 		SseEmitter emitter = broadcaster.subscribe();
 
 		List<EventView> replayEvents = releaseScheduler.lastPollBatchViews();

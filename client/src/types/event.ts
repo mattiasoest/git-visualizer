@@ -20,11 +20,6 @@ export interface EventView {
   commitMessage: string | null;
 }
 
-export interface EventsSnapshotResponse {
-  events: EventView[];
-  lastPollAt: string | null;
-}
-
 export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 export const EVENT_TYPE_COLORS: Record<string, string> = {

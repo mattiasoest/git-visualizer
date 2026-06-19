@@ -3,7 +3,6 @@ package app.gitvisualizer.events.service;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +33,6 @@ public class EventIngestionService {
 	private final GitHubApiProperties properties;
 
 	private final AtomicInteger backoffSeconds = new AtomicInteger(0);
-	private final AtomicReference<Instant> lastPollAt = new AtomicReference<>();
 
 	public EventIngestionService(
 			GitHubEventsClient client,
@@ -57,14 +55,9 @@ public class EventIngestionService {
 		scheduleNextPoll(0);
 	}
 
-	public Instant getLastPollAt() {
-		return lastPollAt.get();
-	}
-
 	private void poll() {
 		try {
 			GitHubEventsResponse response = client.fetchEvents();
-			lastPollAt.set(Instant.now());
 			backoffSeconds.set(0);
 
 			int delaySeconds = Math.max(properties.minPollIntervalSeconds(), response.pollIntervalSeconds());

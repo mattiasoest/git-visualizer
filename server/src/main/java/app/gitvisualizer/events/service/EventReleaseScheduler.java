@@ -19,14 +19,12 @@ import app.gitvisualizer.config.GitHubApiProperties;
 import app.gitvisualizer.events.client.model.GitHubEvent;
 import app.gitvisualizer.events.dto.EventView;
 import app.gitvisualizer.events.support.EventMapper;
-import app.gitvisualizer.events.support.EventRingBuffer;
 
 @Component
 public class EventReleaseScheduler {
 
 	private final TaskScheduler taskScheduler;
 	private final EventBroadcaster broadcaster;
-	private final EventRingBuffer ringBuffer;
 	private final EventMapper eventMapper;
 	private final GitHubApiProperties properties;
 
@@ -41,12 +39,10 @@ public class EventReleaseScheduler {
 	public EventReleaseScheduler(
 			TaskScheduler taskScheduler,
 			EventBroadcaster broadcaster,
-			EventRingBuffer ringBuffer,
 			EventMapper eventMapper,
 			GitHubApiProperties properties) {
 		this.taskScheduler = taskScheduler;
 		this.broadcaster = broadcaster;
-		this.ringBuffer = ringBuffer;
 		this.eventMapper = eventMapper;
 		this.properties = properties;
 	}
@@ -164,7 +160,6 @@ public class EventReleaseScheduler {
 	}
 
 	private void release(GitHubEvent event) {
-		ringBuffer.prepend(event);
 		broadcaster.broadcast(eventMapper.toView(event));
 	}
 

@@ -13,7 +13,7 @@ server/   Spring Boot API and static asset packaging
 
 - **Backend**: Spring Boot 4 in `server/` polls `GET /events` with ETag support and respects `X-Poll-Interval`
 - **Frontend**: React + Vite in `client/` renders a force-directed activity graph and live event feed
-- **Transport**: SSE at `/api/stream/events`, bootstrap snapshot at `/api/events`
+- **Transport**: SSE at `/api/stream/events`
 
 ## Prerequisites
 
@@ -98,8 +98,7 @@ Open http://localhost:8080
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/events?limit=50` | Snapshot of buffered events |
-| `GET /api/stream/events?replay=50` | SSE stream with optional replay |
+| `GET /api/stream/events` | SSE stream of GitHub events |
 | `GET /actuator/health` | Health check |
 
 ## Notes

@@ -1,6 +1,5 @@
 package app.gitvisualizer.events;
 
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -14,7 +13,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import app.gitvisualizer.events.service.EventService;
+import app.gitvisualizer.events.service.EventStreamService;
 
 @WebMvcTest(EventsController.class)
 class EventsControllerTest {
@@ -23,17 +22,17 @@ class EventsControllerTest {
 	private MockMvc mockMvc;
 
 	@MockitoBean
-	private EventService eventService;
+	private EventStreamService streamService;
 
 	@Test
-	void opensSseStreamWithReplay() throws Exception {
+	void opensSseStream() throws Exception {
 		SseEmitter emitter = new SseEmitter();
-		when(eventService.subscribeToStream(anyInt())).thenReturn(emitter);
+		when(streamService.subscribeToStream()).thenReturn(emitter);
 
-		mockMvc.perform(get("/api/stream/events?replay=10"))
+		mockMvc.perform(get("/api/stream/events"))
 				.andExpect(status().isOk())
 				.andExpect(request().asyncStarted());
 
-		verify(eventService).subscribeToStream(10);
+		verify(streamService).subscribeToStream();
 	}
 }
