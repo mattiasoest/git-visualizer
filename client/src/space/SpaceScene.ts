@@ -447,10 +447,10 @@ export class SpaceScene {
     if (!this.cameraAnim) return false;
 
     this.cameraAnim.progress = Math.min(this.cameraAnim.progress + delta * CAMERA_LERP_SPEED, 1);
-    const t = 1 - (1 - this.cameraAnim.progress) ** 3;
+    const cameraEaseT = 1 - (1 - this.cameraAnim.progress) ** 3;
 
-    this.controls.target.lerpVectors(this.cameraAnim.fromTarget, this.cameraAnim.toTarget, t);
-    this.camera.position.lerpVectors(this.cameraAnim.fromPosition, this.cameraAnim.toPosition, t);
+    this.controls.target.lerpVectors(this.cameraAnim.fromTarget, this.cameraAnim.toTarget, cameraEaseT);
+    this.camera.position.lerpVectors(this.cameraAnim.fromPosition, this.cameraAnim.toPosition, cameraEaseT);
 
     if (this.cameraAnim.progress >= 1) {
       this.controls.enableDamping = this.cameraAnim.dampingWasEnabled;
@@ -488,10 +488,10 @@ export class SpaceScene {
 
   private updatePostMergeFade(now: number): void {
     if (this.postMergeFadeStart <= 0) return;
-    const t = Math.min((now - this.postMergeFadeStart) / 600, 1);
-    const scale = 0.01 + (1 - 0.01) * (1 - (1 - t) ** 3);
+    const fadeProgress = Math.min((now - this.postMergeFadeStart) / 600, 1);
+    const scale = 0.01 + (1 - 0.01) * (1 - (1 - fadeProgress) ** 3);
     this.activeClusterGroup.scale.setScalar(scale);
-    if (t >= 1) {
+    if (fadeProgress >= 1) {
       this.activeClusterGroup.scale.setScalar(1);
       this.postMergeFadeStart = 0;
     }

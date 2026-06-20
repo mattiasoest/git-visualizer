@@ -40,8 +40,8 @@ export class EventFlightLayer {
     const now = performance.now();
     let writeIndex = 0;
 
-    for (let i = 0; i < this.flightQueue.length; i++) {
-      const next = this.flightQueue[i]!;
+    for (let queueIndex = 0; queueIndex < this.flightQueue.length; queueIndex++) {
+      const next = this.flightQueue[queueIndex]!;
       const targetId = eventNodeId(next.eventId);
       const target = this.nodes.getNodeState(targetId);
       const repo = this.nodes.getNodeState(next.repoId);
@@ -72,12 +72,12 @@ export class EventFlightLayer {
   update(now: number): void {
     let writeIndex = 0;
 
-    for (let i = 0; i < this.flights.length; i++) {
-      const flight = this.flights[i]!;
+    for (let flightIndex = 0; flightIndex < this.flights.length; flightIndex++) {
+      const flight = this.flights[flightIndex]!;
       this.refreshFlightCurve(flight);
       const elapsed = now - flight.startTime;
-      const t = Math.min(elapsed / FLIGHT_DURATION_MS, 1);
-      const eased = t * t;
+      const flightProgress = Math.min(elapsed / FLIGHT_DURATION_MS, 1);
+      const eased = flightProgress * flightProgress;
 
       const oneMinusT = 1 - eased;
       const omt2 = oneMinusT * oneMinusT;
@@ -96,7 +96,7 @@ export class EventFlightLayer {
       positionAttr.needsUpdate = true;
       (flight.points.material as THREE.PointsMaterial).size = size;
 
-      if (t < 1) {
+      if (flightProgress < 1) {
         this.flights[writeIndex++] = flight;
       } else {
         const target = this.nodes.getNodeState(flight.targetId);

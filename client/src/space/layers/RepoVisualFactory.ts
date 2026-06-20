@@ -88,9 +88,13 @@ export class RepoVisualFactory {
     saturation: number,
     lightnessAtOne: number,
     lightnessAtMax: number,
-    t: number,
+    activityFactor: number,
   ): THREE.Color {
-    return new THREE.Color().setHSL(hue, saturation, lightnessAtOne + (lightnessAtMax - lightnessAtOne) * t);
+    return new THREE.Color().setHSL(
+      hue,
+      saturation,
+      lightnessAtOne + (lightnessAtMax - lightnessAtOne) * activityFactor,
+    );
   }
 
   private repoActivityColors(
@@ -105,19 +109,19 @@ export class RepoVisualFactory {
     ringA: THREE.Color;
     ringB: THREE.Color;
   } {
-    const t = this.repoActivityT(eventCount);
+    const activityFactor = this.repoActivityT(eventCount);
     const hueShift = hashToUnitVector(repoId).x * 0.07;
     const shellHue = 0.44 + hueShift;
     const coreHue = 0.48 + hueShift;
 
     return {
-      atmosphere: this.repoLayerColor(shellHue, 0.55, 0.18, 0.07, t),
-      innerGlow: this.repoLayerColor(coreHue, 0.75, 0.42, 0.16, t),
-      outerShell: this.repoLayerColor(shellHue, 0.7, 0.38, 0.13, t),
-      outerWire: this.repoLayerColor(coreHue, 0.85, 0.62, 0.24, t),
-      innerCore: this.repoLayerColor(coreHue + 0.02, 0.9, 0.78, 0.2, t),
-      ringA: this.repoLayerColor(coreHue + 0.04, 0.9, 0.58, 0.18, t),
-      ringB: this.repoLayerColor(shellHue + 0.03, 0.65, 0.45, 0.11, t),
+      atmosphere: this.repoLayerColor(shellHue, 0.55, 0.18, 0.07, activityFactor),
+      innerGlow: this.repoLayerColor(coreHue, 0.75, 0.42, 0.16, activityFactor),
+      outerShell: this.repoLayerColor(shellHue, 0.7, 0.38, 0.13, activityFactor),
+      outerWire: this.repoLayerColor(coreHue, 0.85, 0.62, 0.24, activityFactor),
+      innerCore: this.repoLayerColor(coreHue + 0.02, 0.9, 0.78, 0.2, activityFactor),
+      ringA: this.repoLayerColor(coreHue + 0.04, 0.9, 0.58, 0.18, activityFactor),
+      ringB: this.repoLayerColor(shellHue + 0.03, 0.65, 0.45, 0.11, activityFactor),
     };
   }
 
@@ -263,8 +267,8 @@ export class RepoVisualFactory {
     particleMat.size = scale * 1.55;
 
     if (orbitRings) {
-      for (let i = 0; i < orbitRings.length; i++) {
-        orbitRings[i]!.scale.setScalar(scale * REPO_RING_SCALE[i]!);
+      for (let ringIndex = 0; ringIndex < orbitRings.length; ringIndex++) {
+        orbitRings[ringIndex]!.scale.setScalar(scale * REPO_RING_SCALE[ringIndex]!);
       }
     }
   }

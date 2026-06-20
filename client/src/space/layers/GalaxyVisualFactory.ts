@@ -71,17 +71,20 @@ export class GalaxyVisualFactory {
     const haloPositions = new Float32Array(haloCount * 3);
     const haloColors = new Float32Array(haloCount * 3);
     const color = new THREE.Color(0xa88cff);
-    for (let i = 0; i < haloCount; i++) {
-      const t = i / haloCount;
-      const angle = t * Math.PI * 6;
-      const radius = scale * (0.5 + t * 0.9);
-      const y = (Math.sin(t * Math.PI * 4) * 0.35 + Math.cos(i * 0.7) * 0.15) * scale * 0.3;
-      haloPositions[i * 3] = Math.cos(angle) * radius;
-      haloPositions[i * 3 + 1] = y;
-      haloPositions[i * 3 + 2] = Math.sin(angle) * radius * 0.85;
-      haloColors[i * 3] = color.r;
-      haloColors[i * 3 + 1] = color.g;
-      haloColors[i * 3 + 2] = color.b;
+    for (let haloIndex = 0; haloIndex < haloCount; haloIndex++) {
+      const haloFraction = haloIndex / haloCount;
+      const angle = haloFraction * Math.PI * 6;
+      const radius = scale * (0.5 + haloFraction * 0.9);
+      const verticalOffset =
+        (Math.sin(haloFraction * Math.PI * 4) * 0.35 + Math.cos(haloIndex * 0.7) * 0.15) *
+        scale *
+        0.3;
+      haloPositions[haloIndex * 3] = Math.cos(angle) * radius;
+      haloPositions[haloIndex * 3 + 1] = verticalOffset;
+      haloPositions[haloIndex * 3 + 2] = Math.sin(angle) * radius * 0.85;
+      haloColors[haloIndex * 3] = color.r;
+      haloColors[haloIndex * 3 + 1] = color.g;
+      haloColors[haloIndex * 3 + 2] = color.b;
     }
     const haloGeo = new THREE.BufferGeometry();
     haloGeo.setAttribute('position', new THREE.BufferAttribute(haloPositions, 3));

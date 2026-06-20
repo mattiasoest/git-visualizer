@@ -17,14 +17,14 @@ const scratchOrbit = new THREE.Vector3();
 
 export function hashToUnitVector(id: string): THREE.Vector3 {
   let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash << 5) - hash + id.charCodeAt(i);
+  for (let charIndex = 0; charIndex < id.length; charIndex++) {
+    hash = (hash << 5) - hash + id.charCodeAt(charIndex);
     hash |= 0;
   }
-  const u = ((hash & 0xffff) / 0xffff) * 2 - 1;
-  const v = (((hash >> 16) & 0xffff) / 0xffff) * 2 - 1;
-  const theta = u * Math.PI * 2;
-  const phi = Math.acos(Math.max(-1, Math.min(1, v)));
+  const azimuthUnit = ((hash & 0xffff) / 0xffff) * 2 - 1;
+  const elevationUnit = (((hash >> 16) & 0xffff) / 0xffff) * 2 - 1;
+  const theta = azimuthUnit * Math.PI * 2;
+  const phi = Math.acos(Math.max(-1, Math.min(1, elevationUnit)));
   return new THREE.Vector3(
     Math.sin(phi) * Math.cos(theta),
     Math.sin(phi) * Math.sin(theta) * 0.55,
@@ -99,7 +99,7 @@ export function buildOrgClusters(repos: GraphNode[]): OrgCluster[] {
   }
 
   return Array.from(byOrg.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([orgA], [orgB]) => orgA.localeCompare(orgB))
     .map(([ownerOrg, repoIds]) => ({
       ownerOrg,
       repoIds: repoIds.sort(),
@@ -112,8 +112,8 @@ export function computeHierarchicalPositions(
   _links: unknown[],
 ): Map<string, THREE.Vector3> {
   const positions = new Map<string, THREE.Vector3>();
-  const nodeById = new Map(nodes.map((n) => [n.id, n]));
-  const repos = nodes.filter((n) => n.kind === 'repo');
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const repos = nodes.filter((node) => node.kind === 'repo');
 
   const clusters = buildOrgClusters(repos);
   for (const cluster of clusters) {

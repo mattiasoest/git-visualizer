@@ -25,18 +25,18 @@ interface ShockRing {
   startTime: number;
 }
 
-function easeInCubic(t: number): number {
-  return t * t * t;
+function easeInCubic(progress: number): number {
+  return progress * progress * progress;
 }
 
-function easeOutCubic(t: number): number {
-  return 1 - (1 - t) ** 3;
+function easeOutCubic(progress: number): number {
+  return 1 - (1 - progress) ** 3;
 }
 
-function easeOutBack(t: number): number {
+function easeOutBack(progress: number): number {
   const c1 = 1.70158;
   const c3 = c1 + 1;
-  return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+  return 1 + c3 * (progress - 1) ** 3 + c1 * (progress - 1) ** 2;
 }
 
 /** Merge VFX: cluster contents suck to center, then explode into a new galaxy. */
@@ -73,9 +73,9 @@ export class BlackholeMergeLayer {
     const elapsed = now - this.phaseStart;
 
     if (this.phase === 'suck') {
-      const t = Math.min(elapsed / MERGE_SUCK_MS, 1);
-      const suckT = easeInCubic(t) * 0.9;
-      if (t >= 1) this.advancePhase('collapse', now);
+      const suckProgress = Math.min(elapsed / MERGE_SUCK_MS, 1);
+      const suckT = easeInCubic(suckProgress) * 0.9;
+      if (suckProgress >= 1) this.advancePhase('collapse', now);
       return {
         phase: 'suck',
         suckT,
@@ -88,27 +88,27 @@ export class BlackholeMergeLayer {
     }
 
     if (this.phase === 'collapse') {
-      const t = Math.min(elapsed / MERGE_COLLAPSE_MS, 1);
-      const suckT = 0.9 + easeOutCubic(t) * 0.1;
-      if (t >= 1) {
+      const collapseProgress = Math.min(elapsed / MERGE_COLLAPSE_MS, 1);
+      const suckT = 0.9 + easeOutCubic(collapseProgress) * 0.1;
+      if (collapseProgress >= 1) {
         this.spawnExplosion(now);
         this.advancePhase('explode', now);
       }
       return {
         phase: 'collapse',
         suckT,
-        clusterScale: Math.max(0.001, 1 - t),
-        clusterSpin: Math.PI * 5 + t * Math.PI * 3,
-        clusterOpacity: Math.max(0, 0.45 * (1 - t)),
+        clusterScale: Math.max(0.001, 1 - collapseProgress),
+        clusterSpin: Math.PI * 5 + collapseProgress * Math.PI * 3,
+        clusterOpacity: Math.max(0, 0.45 * (1 - collapseProgress)),
         galaxySpawnT: 0,
         done: false,
       };
     }
 
     if (this.phase === 'explode') {
-      const t = Math.min(elapsed / MERGE_EXPLODE_MS, 1);
-      this.updateExplosion(t, now);
-      if (t >= 1) this.advancePhase('spawn', now);
+      const explodeProgress = Math.min(elapsed / MERGE_EXPLODE_MS, 1);
+      this.updateExplosion(explodeProgress, now);
+      if (explodeProgress >= 1) this.advancePhase('spawn', now);
       return {
         phase: 'explode',
         suckT: 1,
@@ -121,9 +121,9 @@ export class BlackholeMergeLayer {
     }
 
     if (this.phase === 'spawn') {
-      const t = Math.min(elapsed / MERGE_GALAXY_SPAWN_MS, 1);
-      this.updateExplosionFadeout(t);
-      if (t >= 1) {
+      const spawnProgress = Math.min(elapsed / MERGE_GALAXY_SPAWN_MS, 1);
+      this.updateExplosionFadeout(spawnProgress);
+      if (spawnProgress >= 1) {
         this.phase = 'done';
         this.resetMeshes();
       }
@@ -133,8 +133,8 @@ export class BlackholeMergeLayer {
         clusterScale: 0,
         clusterSpin: 0,
         clusterOpacity: 0,
-        galaxySpawnT: easeOutBack(t),
-        done: t >= 1,
+        galaxySpawnT: easeOutBack(spawnProgress),
+        done: spawnProgress >= 1,
       };
     }
 
@@ -170,18 +170,18 @@ export class BlackholeMergeLayer {
     const colors = new Float32Array(burstCount * 3);
     const colorA = new THREE.Color(0xff88ff);
     const colorB = new THREE.Color(0x66ccff);
-    for (let i = 0; i < burstCount; i++) {
+    for (let particleIndex = 0; particleIndex < burstCount; particleIndex++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = 2 + Math.random() * 4;
-      positions[i * 3] = Math.sin(phi) * Math.cos(theta) * r;
-      positions[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * r;
-      positions[i * 3 + 2] = Math.cos(phi) * r;
+      const burstRadius = 2 + Math.random() * 4;
+      positions[particleIndex * 3] = Math.sin(phi) * Math.cos(theta) * burstRadius;
+      positions[particleIndex * 3 + 1] = Math.sin(phi) * Math.sin(theta) * burstRadius;
+      positions[particleIndex * 3 + 2] = Math.cos(phi) * burstRadius;
       const mix = Math.random();
-      const c = colorA.clone().lerp(colorB, mix);
-      colors[i * 3] = c.r;
-      colors[i * 3 + 1] = c.g;
-      colors[i * 3 + 2] = c.b;
+      const lerpedColor = colorA.clone().lerp(colorB, mix);
+      colors[particleIndex * 3] = lerpedColor.r;
+      colors[particleIndex * 3 + 1] = lerpedColor.g;
+      colors[particleIndex * 3 + 2] = lerpedColor.b;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -199,28 +199,28 @@ export class BlackholeMergeLayer {
     this.burstPoints = new THREE.Points(geo, mat);
     this.group.add(this.burstPoints);
 
-    for (let i = 0; i < 3; i++) {
+    for (let ringIndex = 0; ringIndex < 3; ringIndex++) {
       const mat = new THREE.MeshBasicMaterial({
-        color: i === 0 ? 0xffffff : 0xc77dff,
+        color: ringIndex === 0 ? 0xffffff : 0xc77dff,
         transparent: true,
-        opacity: 0.95 - i * 0.2,
+        opacity: 0.95 - ringIndex * 0.2,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         side: THREE.DoubleSide,
       });
       const mesh = new THREE.Mesh(this.ringGeo, mat);
       mesh.rotation.x = Math.PI / 2;
-      mesh.scale.setScalar(0.5 + i * 0.3);
+      mesh.scale.setScalar(0.5 + ringIndex * 0.3);
       this.group.add(mesh);
-      this.shockRings.push({ mesh, material: mat, startTime: now + i * 80 });
+      this.shockRings.push({ mesh, material: mat, startTime: now + ringIndex * 80 });
     }
   }
 
-  private updateExplosion(t: number, now: number): void {
-    const expand = easeOutCubic(t);
+  private updateExplosion(progress: number, now: number): void {
+    const expand = easeOutCubic(progress);
     if (this.burstPoints) {
       this.burstPoints.scale.setScalar(1 + expand * 18);
-      (this.burstPoints.material as THREE.PointsMaterial).opacity = (1 - t ** 0.7) * 0.95;
+      (this.burstPoints.material as THREE.PointsMaterial).opacity = (1 - progress ** 0.7) * 0.95;
     }
     for (const ring of this.shockRings) {
       const ringT = Math.min((now - ring.startTime) / MERGE_EXPLODE_MS, 1);
@@ -231,8 +231,8 @@ export class BlackholeMergeLayer {
     }
   }
 
-  private updateExplosionFadeout(t: number): void {
-    const fade = 1 - t;
+  private updateExplosionFadeout(progress: number): void {
+    const fade = 1 - progress;
     if (this.burstPoints) {
       (this.burstPoints.material as THREE.PointsMaterial).opacity = fade * 0.4;
     }

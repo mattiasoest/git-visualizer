@@ -120,8 +120,8 @@ export function useSpaceEventSync(
     scene.updateGraph(graphData);
 
     const currentActiveTypes = activeTypesRef.current;
-    for (let i = activeEvents.length - 1; i >= 0; i--) {
-      const event = activeEvents[i]!;
+    for (let eventIndex = activeEvents.length - 1; eventIndex >= 0; eventIndex--) {
+      const event = activeEvents[eventIndex]!;
       if (seenEventIds.current.has(event.id)) continue;
       seenEventIds.current.add(event.id);
 

@@ -85,9 +85,9 @@ class EventReleaseSchedulerTest {
 				.map(ScheduledTask::delayMs)
 				.sorted()
 				.toList();
-		for (int i = 0; i < relativeDelays.size(); i++) {
-			long expected = relativeDelays.getFirst() + (long) i * 2_000L;
-			assertThat(relativeDelays.get(i)).isCloseTo(expected, within(50L));
+		for (int delayIndex = 0; delayIndex < relativeDelays.size(); delayIndex++) {
+			long expected = relativeDelays.getFirst() + (long) delayIndex * 2_000L;
+			assertThat(relativeDelays.get(delayIndex)).isCloseTo(expected, within(50L));
 		}
 
 		verify(broadcaster, times(1)).broadcast(view("1", "2026-06-13T12:00:01Z"));

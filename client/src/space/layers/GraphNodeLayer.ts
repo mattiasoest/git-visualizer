@@ -221,8 +221,8 @@ export class GraphNodeLayer {
   }
 
   updateGraph(data: GraphData, onGraphCleared: () => void): GraphLink[] {
-    const activeIds = new Set(data.nodes.map((n) => n.id));
-    const linkKeys = new Set(data.links.map((l) => l.key));
+    const activeIds = new Set(data.nodes.map((node) => node.id));
+    const linkKeys = new Set(data.links.map((link) => link.key));
     const topologyChanged = this.topologyChanged(activeIds, linkKeys);
 
     if (topologyChanged) {
@@ -247,7 +247,7 @@ export class GraphNodeLayer {
       this.upsertNode(node, position);
     }
 
-    this.eventNodes = data.nodes.filter((n) => n.kind === 'event');
+    this.eventNodes = data.nodes.filter((node) => node.kind === 'event');
     this.syncEventParticles();
     this.graphHasNodes = data.nodes.length > 0;
     this.applyNodeLabelVisibility();

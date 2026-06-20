@@ -12,7 +12,8 @@ function mergeEvents(existing: EventView[], incoming: EventView[]): EventView[] 
     }
   }
   return Array.from(map.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    (leftEvent, rightEvent) =>
+      new Date(rightEvent.createdAt).getTime() - new Date(leftEvent.createdAt).getTime(),
   );
 }
 

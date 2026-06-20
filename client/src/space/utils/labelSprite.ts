@@ -22,22 +22,22 @@ const textureCache = new Map<string, THREE.CanvasTexture>();
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
+  rectX: number,
+  rectY: number,
+  width: number,
+  height: number,
+  cornerRadius: number,
 ): void {
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.moveTo(rectX + cornerRadius, rectY);
+  ctx.lineTo(rectX + width - cornerRadius, rectY);
+  ctx.quadraticCurveTo(rectX + width, rectY, rectX + width, rectY + cornerRadius);
+  ctx.lineTo(rectX + width, rectY + height - cornerRadius);
+  ctx.quadraticCurveTo(rectX + width, rectY + height, rectX + width - cornerRadius, rectY + height);
+  ctx.lineTo(rectX + cornerRadius, rectY + height);
+  ctx.quadraticCurveTo(rectX, rectY + height, rectX, rectY + height - cornerRadius);
+  ctx.lineTo(rectX, rectY + cornerRadius);
+  ctx.quadraticCurveTo(rectX, rectY, rectX + cornerRadius, rectY);
   ctx.closePath();
 }
 
@@ -112,10 +112,10 @@ function truncateCommitText(text: string): string {
 
 function hexToRgba(hex: string, alpha: number): string {
   const normalized = hex.replace('#', '');
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const red = parseInt(normalized.slice(0, 2), 16);
+  const green = parseInt(normalized.slice(2, 4), 16);
+  const blue = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 export function createCommitLabelSprite(text: string, accentColor: string): THREE.Sprite {

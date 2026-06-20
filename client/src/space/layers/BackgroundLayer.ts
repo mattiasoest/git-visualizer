@@ -31,22 +31,22 @@ export class BackgroundLayer {
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
 
-    for (let i = 0; i < count; i++) {
+    for (let starIndex = 0; starIndex < count; starIndex++) {
       const radius = 120 + Math.random() * 180;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = radius * Math.cos(phi);
+      positions[starIndex * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[starIndex * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      positions[starIndex * 3 + 2] = radius * Math.cos(phi);
 
       const tint = Math.random();
       if (tint < 0.15) color.setHSL(0.75, 0.5, 0.75);
       else if (tint < 0.3) color.setHSL(0.58, 0.45, 0.8);
       else color.setHSL(0.6, 0.1, 0.85 + Math.random() * 0.15);
 
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
+      colors[starIndex * 3] = color.r;
+      colors[starIndex * 3 + 1] = color.g;
+      colors[starIndex * 3 + 2] = color.b;
     }
 
     const geometry = new THREE.BufferGeometry();
@@ -72,16 +72,16 @@ export class BackgroundLayer {
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
 
-    for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 200;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+    for (let nebulaIndex = 0; nebulaIndex < count; nebulaIndex++) {
+      positions[nebulaIndex * 3] = (Math.random() - 0.5) * 200;
+      positions[nebulaIndex * 3 + 1] = (Math.random() - 0.5) * 80;
+      positions[nebulaIndex * 3 + 2] = (Math.random() - 0.5) * 200;
 
       const hue = 0.72 + Math.random() * 0.15;
       color.setHSL(hue, 0.7, 0.35 + Math.random() * 0.2);
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
+      colors[nebulaIndex * 3] = color.r;
+      colors[nebulaIndex * 3 + 1] = color.g;
+      colors[nebulaIndex * 3 + 2] = color.b;
     }
 
     const geometry = new THREE.BufferGeometry();

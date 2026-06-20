@@ -72,8 +72,9 @@ export function computeEventBurstGrouping(
 
   for (const members of groups.values()) {
     members.sort(
-      (a, b) =>
-        new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime(),
+      (earlierEvent, laterEvent) =>
+        new Date(earlierEvent.createdAt ?? 0).getTime() -
+        new Date(laterEvent.createdAt ?? 0).getTime(),
     );
 
     const count = members.length;
@@ -178,15 +179,15 @@ export function buildGraph(events: EventView[]): GraphData {
 
 export function graphDataFingerprint(data: GraphData): string {
   const nodePart = data.nodes
-    .map((n) =>
-      n.kind === "event"
-        ? `${n.id}:${n.actorLogin}:${n.label}`
-        : `${n.id}:${n.eventCount}`,
+    .map((node) =>
+      node.kind === "event"
+        ? `${node.id}:${node.actorLogin}:${node.label}`
+        : `${node.id}:${node.eventCount}`,
     )
     .sort()
     .join("|");
   const linkPart = data.links
-    .map((l) => `${l.key}:${l.weight}`)
+    .map((link) => `${link.key}:${link.weight}`)
     .sort()
     .join("|");
   return `${nodePart}::${linkPart}`;

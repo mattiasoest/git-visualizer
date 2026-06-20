@@ -16,9 +16,9 @@ function allocateGalaxyId(archives: ClusterArchive[], pending: ClusterArchive | 
   const used = new Set<string>();
   for (const archive of archives) used.add(archive.id);
   if (pending) used.add(pending.id);
-  let n = 1;
-  while (used.has(`galaxy-${n}`)) n += 1;
-  return `galaxy-${n}`;
+  let galaxyNumber = 1;
+  while (used.has(`galaxy-${galaxyNumber}`)) galaxyNumber += 1;
+  return `galaxy-${galaxyNumber}`;
 }
 
 export function useClusterArchives(allEvents: EventView[]) {

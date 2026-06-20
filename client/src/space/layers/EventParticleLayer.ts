@@ -42,10 +42,10 @@ interface UpgradedPointLayer {
   sizes: Float32Array;
 }
 
-function easeOutBack(t: number): number {
+function easeOutBack(progress: number): number {
   const c1 = 1.60158;
   const c3 = c1 + 1;
-  return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+  return 1 + c3 * (progress - 1) ** 3 + c1 * (progress - 1) ** 2;
 }
 
 function createUpgradedLayer(
@@ -151,7 +151,7 @@ export class EventParticleLayer {
   ): void {
     this.parentPositions = parentPositions;
 
-    const nextIds = new Set(events.map((e) => e.id));
+    const nextIds = new Set(events.map((event) => event.id));
     for (const id of this.states.keys()) {
       if (!nextIds.has(id)) this.states.delete(id);
     }
@@ -181,12 +181,15 @@ export class EventParticleLayer {
       const state = this.states.get(id);
       if (!state) continue;
       const siblings = Array.from(this.states.values())
-        .filter((s) => s.parentRepoId === state.parentRepoId)
-        .map((s) => ({ id: s.id, phaseOffset: s.orbitPhaseOffset ?? 0 }));
+        .filter((siblingState) => siblingState.parentRepoId === state.parentRepoId)
+        .map((siblingState) => ({
+          id: siblingState.id,
+          phaseOffset: siblingState.orbitPhaseOffset ?? 0,
+        }));
       state.orbitPhaseOffset = resolveEventOrbitPhaseOffset(id, time, siblings);
     }
 
-    this.order = events.map((e) => e.id);
+    this.order = events.map((event) => event.id);
     this.ensureNormalBuffers(this.order.length);
     this.ensureUpgradedBuffers(this.upgradedCoreLayer, this.order.length);
     this.ensureUpgradedBuffers(this.upgradedGlowLayer, this.order.length);
@@ -223,8 +226,8 @@ export class EventParticleLayer {
     return this.hiddenIds.has(id);
   }
 
-  setMergeSuck(t: number): void {
-    this.mergeSuckT = Math.max(0, Math.min(1, t));
+  setMergeSuck(mergeSuckProgress: number): void {
+    this.mergeSuckT = Math.max(0, Math.min(1, mergeSuckProgress));
   }
 
   clearMergeSuck(): void {
@@ -279,8 +282,8 @@ export class EventParticleLayer {
   }
 
   advancePositions(time: number): void {
-    for (let i = 0; i < this.order.length; i++) {
-      const id = this.order[i]!;
+    for (let orderIndex = 0; orderIndex < this.order.length; orderIndex++) {
+      const id = this.order[orderIndex]!;
       const state = this.states.get(id);
       if (state) this.computeWorldPosition(id, state, time);
     }
@@ -307,8 +310,8 @@ export class EventParticleLayer {
     let upgradedCoreCount = 0;
     let upgradedGlowCount = 0;
 
-    for (let i = 0; i < count; i++) {
-      const id = this.order[i]!;
+    for (let particleIndex = 0; particleIndex < count; particleIndex++) {
+      const id = this.order[particleIndex]!;
       const state = this.states.get(id);
       if (!state) continue;
 
@@ -500,8 +503,8 @@ export class EventParticleLayer {
 
   private updateBurstRings(now: number): void {
     let write = 0;
-    for (let i = 0; i < this.burstRings.length; i++) {
-      const ring = this.burstRings[i]!;
+    for (let ringIndex = 0; ringIndex < this.burstRings.length; ringIndex++) {
+      const ring = this.burstRings[ringIndex]!;
       const spawnT = Math.min((now - ring.startTime) / EVENT_SPAWN_MS, 1);
       if (spawnT >= 1) {
         this.group.remove(ring.mesh);

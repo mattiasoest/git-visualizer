@@ -113,13 +113,13 @@ public class EventReleaseScheduler {
 		int count = events.size();
 		long windowMs = windowSeconds * 1000L;
 
-		for (int i = 0; i < count; i++) {
-			GitHubEvent event = events.get(i);
+		for (int eventIndex = 0; eventIndex < count; eventIndex++) {
+			GitHubEvent event = events.get(eventIndex);
 			EventView view = eventMapper.toView(event);
 			PendingLiveRelease pending = new PendingLiveRelease(event, view);
 			pendingLiveReleases.add(pending);
 
-			long delayMs = (long) i * windowMs / count;
+			long delayMs = (long) eventIndex * windowMs / count;
 			ScheduledFuture<?> future = taskScheduler.schedule(
 					() -> releaseIfPending(pending, generation),
 					Instant.now().plusMillis(delayMs));
@@ -131,9 +131,9 @@ public class EventReleaseScheduler {
 		int count = events.size();
 		long windowMs = windowSeconds * 1000L;
 
-		for (int i = 0; i < count; i++) {
-			long delayMs = (long) i * windowMs / count;
-			EventView event = events.get(i);
+		for (int eventIndex = 0; eventIndex < count; eventIndex++) {
+			long delayMs = (long) eventIndex * windowMs / count;
+			EventView event = events.get(eventIndex);
 			taskScheduler.schedule(() -> sender.accept(event), Instant.now().plusMillis(delayMs));
 		}
 	}
