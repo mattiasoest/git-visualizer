@@ -21,7 +21,7 @@ For local development (two terminals):
 
 - Java 25+
 - Maven 3.9+
-- Node.js 22+ (for local client dev; Maven can install Node for production builds)
+- Node.js 24+ (for local client dev; Maven can install Node for production builds)
 
 For Docker development (single command, no local Java/Node required):
 
