@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { MAX_ARCHIVE_EVENTS } from '../utils/constants';
-import { eventOrbitOffset, resolveEventOrbitPhaseOffset } from '../utils/clusterLayout';
+import {
+  eventOrbitOffset,
+  resolveEventOrbitPhaseOffset,
+} from '../utils/clusterLayout';
 import {
   createSizedPointsMaterial,
   type SizedPointsMaterial,
@@ -16,7 +19,8 @@ const NORMAL_GLOW_MATERIAL_SIZE = 2.8;
 
 const UPGRADED_SIZE_SCALE = 1.4;
 const UPGRADED_CORE_SIZE = NORMAL_CORE_MATERIAL_SIZE * UPGRADED_SIZE_SCALE;
-const UPGRADED_GLOW_SIZE = NORMAL_GLOW_MATERIAL_SIZE * UPGRADED_SIZE_SCALE * 1.175;
+const UPGRADED_GLOW_SIZE =
+  NORMAL_GLOW_MATERIAL_SIZE * UPGRADED_SIZE_SCALE * 1.175;
 const UPGRADED_GLOW_DARKEN = 0.32;
 const UPGRADED_GLOW_OPACITY = 0.58;
 
@@ -53,7 +57,10 @@ function createUpgradedLayer(
   opacity: number,
   blending: THREE.Blending = THREE.NormalBlending,
 ): UpgradedPointLayer {
-  const material = createSizedPointsMaterial(pointSprite, { opacity, blending });
+  const material = createSizedPointsMaterial(pointSprite, {
+    opacity,
+    blending,
+  });
   const geometry = new THREE.BufferGeometry();
   return {
     points: new THREE.Points(geometry, material),
@@ -136,7 +143,10 @@ export class EventParticleLayer {
     );
 
     this.upgradedCoreLayer = createUpgradedLayer(pointSprite, 0.95);
-    this.upgradedGlowLayer = createUpgradedLayer(pointSprite, UPGRADED_GLOW_OPACITY);
+    this.upgradedGlowLayer = createUpgradedLayer(
+      pointSprite,
+      UPGRADED_GLOW_OPACITY,
+    );
 
     this.group.add(this.pointsCore);
     this.group.add(this.pointsGlow);
@@ -172,7 +182,11 @@ export class EventParticleLayer {
         existing.suppressed = event.suppressed;
         existing.upgraded = event.upgraded ?? false;
       } else {
-        this.states.set(event.id, { ...event, upgraded: event.upgraded ?? false, orbitPhaseOffset: 0 });
+        this.states.set(event.id, {
+          ...event,
+          upgraded: event.upgraded ?? false,
+          orbitPhaseOffset: 0,
+        });
         newIds.push(event.id);
       }
     }
@@ -181,7 +195,9 @@ export class EventParticleLayer {
       const state = this.states.get(id);
       if (!state) continue;
       const siblings = Array.from(this.states.values())
-        .filter((siblingState) => siblingState.parentRepoId === state.parentRepoId)
+        .filter(
+          (siblingState) => siblingState.parentRepoId === state.parentRepoId,
+        )
         .map((siblingState) => ({
           id: siblingState.id,
           phaseOffset: siblingState.orbitPhaseOffset ?? 0,
@@ -322,7 +338,8 @@ export class EventParticleLayer {
       if (deferred || this.hiddenIds.has(id) || state.suppressed) continue;
 
       const spawning =
-        state.spawnStartTime > 0 && (now - state.spawnStartTime) / EVENT_SPAWN_MS < 1;
+        state.spawnStartTime > 0 &&
+        (now - state.spawnStartTime) / EVENT_SPAWN_MS < 1;
       const spawnT = spawning
         ? Math.min((now - state.spawnStartTime) / EVENT_SPAWN_MS, 1)
         : 1;
@@ -345,11 +362,19 @@ export class EventParticleLayer {
 
       if (upgraded) {
         const coreSize = UPGRADED_CORE_SIZE * scaleMul;
-        this.writeUpgradedPoint(this.upgradedCoreLayer, upgradedCoreCount, worldPos, state.color, coreSize);
+        this.writeUpgradedPoint(
+          this.upgradedCoreLayer,
+          upgradedCoreCount,
+          worldPos,
+          state.color,
+          coreSize,
+        );
         upgradedCoreCount += 1;
 
         this.scratchColor.set(state.color);
-        this.scratchDark.copy(this.scratchColor).multiplyScalar(UPGRADED_GLOW_DARKEN);
+        this.scratchDark
+          .copy(this.scratchColor)
+          .multiplyScalar(UPGRADED_GLOW_DARKEN);
         this.writeUpgradedPoint(
           this.upgradedGlowLayer,
           upgradedGlowCount,
@@ -413,16 +438,25 @@ export class EventParticleLayer {
     this.coreSizes = new Float32Array(capped);
 
     const coreGeo = this.pointsCore.geometry;
-    coreGeo.setAttribute('position', new THREE.BufferAttribute(this.corePositions, 3));
+    coreGeo.setAttribute(
+      'position',
+      new THREE.BufferAttribute(this.corePositions, 3),
+    );
     coreGeo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
     coreGeo.setAttribute('size', new THREE.BufferAttribute(this.coreSizes, 1));
 
     const glowGeo = this.pointsGlow.geometry;
-    glowGeo.setAttribute('position', new THREE.BufferAttribute(this.glowPositions, 3));
+    glowGeo.setAttribute(
+      'position',
+      new THREE.BufferAttribute(this.glowPositions, 3),
+    );
     glowGeo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
   }
 
-  private ensureUpgradedBuffers(layer: UpgradedPointLayer, count: number): void {
+  private ensureUpgradedBuffers(
+    layer: UpgradedPointLayer,
+    count: number,
+  ): void {
     const capped = Math.min(Math.max(count, 1), this.maxEventsCap);
     if (layer.positions.length >= capped * 3 && count > 0) return;
 
@@ -431,32 +465,49 @@ export class EventParticleLayer {
     layer.sizes = new Float32Array(capped);
 
     const geometry = layer.points.geometry;
-    geometry.setAttribute('position', new THREE.BufferAttribute(layer.positions, 3));
-    geometry.setAttribute('particleColor', new THREE.BufferAttribute(layer.colors, 3));
+    geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(layer.positions, 3),
+    );
+    geometry.setAttribute(
+      'particleColor',
+      new THREE.BufferAttribute(layer.colors, 3),
+    );
     geometry.setAttribute('size', new THREE.BufferAttribute(layer.sizes, 1));
   }
 
   private markNormalBuffersDirty(visibleCount: number): void {
     const coreGeo = this.pointsCore.geometry;
     const glowGeo = this.pointsGlow.geometry;
-    (coreGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+    (coreGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate =
+      true;
     (coreGeo.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
     (coreGeo.getAttribute('size') as THREE.BufferAttribute).needsUpdate = true;
-    (glowGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+    (glowGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate =
+      true;
     (glowGeo.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
     coreGeo.setDrawRange(0, visibleCount);
     glowGeo.setDrawRange(0, visibleCount);
   }
 
-  private markUpgradedBuffersDirty(layer: UpgradedPointLayer, visibleCount: number): void {
+  private markUpgradedBuffersDirty(
+    layer: UpgradedPointLayer,
+    visibleCount: number,
+  ): void {
     const geometry = layer.points.geometry;
-    (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
-    (geometry.getAttribute('particleColor') as THREE.BufferAttribute).needsUpdate = true;
+    (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate =
+      true;
+    (
+      geometry.getAttribute('particleColor') as THREE.BufferAttribute
+    ).needsUpdate = true;
     (geometry.getAttribute('size') as THREE.BufferAttribute).needsUpdate = true;
     this.setUpgradedDrawRange(layer, visibleCount);
   }
 
-  private setUpgradedDrawRange(layer: UpgradedPointLayer, visibleCount: number): void {
+  private setUpgradedDrawRange(
+    layer: UpgradedPointLayer,
+    visibleCount: number,
+  ): void {
     layer.points.geometry.setDrawRange(0, visibleCount);
   }
 
@@ -472,13 +523,17 @@ export class EventParticleLayer {
       worldPos = new THREE.Vector3();
       this.worldPositions.set(id, worldPos);
     }
-    return worldPos.copy(parentPos).add(eventOrbitOffset(id, time, state.orbitPhaseOffset ?? 0)).lerp(
-      this.mergeOrigin,
-      this.mergeSuckT,
-    );
+    return worldPos
+      .copy(parentPos)
+      .add(eventOrbitOffset(id, time, state.orbitPhaseOffset ?? 0))
+      .lerp(this.mergeOrigin, this.mergeSuckT);
   }
 
-  private spawnBurstRing(eventId: string, color: string, upgraded: boolean): void {
+  private spawnBurstRing(
+    eventId: string,
+    color: string,
+    upgraded: boolean,
+  ): void {
     if (this.burstRings.length >= 8) {
       const oldest = this.burstRings.shift()!;
       this.group.remove(oldest.mesh);
@@ -498,7 +553,12 @@ export class EventParticleLayer {
     const position = this.worldPositions.get(eventId);
     if (position) mesh.position.copy(position);
     this.group.add(mesh);
-    this.burstRings.push({ mesh, material, startTime: performance.now(), eventId });
+    this.burstRings.push({
+      mesh,
+      material,
+      startTime: performance.now(),
+      eventId,
+    });
   }
 
   private updateBurstRings(now: number): void {
@@ -520,7 +580,8 @@ export class EventParticleLayer {
       const upgraded = this.states.get(ring.eventId)?.upgraded === true;
       ring.mesh.position.copy(position);
       ring.mesh.scale.setScalar(
-        EVENT_NODE_BASE_RADIUS * ((upgraded ? 0.4 : 0.25) + spawnT * (upgraded ? 8.5 : 6.5)),
+        EVENT_NODE_BASE_RADIUS *
+          ((upgraded ? 0.4 : 0.25) + spawnT * (upgraded ? 8.5 : 6.5)),
       );
       ring.material.opacity = (upgraded ? 0.95 : 0.9) * (1 - spawnT ** 0.85);
       this.burstRings[write++] = ring;

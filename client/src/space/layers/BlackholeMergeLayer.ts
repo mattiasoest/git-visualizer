@@ -7,7 +7,13 @@ import {
 } from '../utils/constants';
 import { softCircleSprite } from '../utils/softSprite';
 
-export type MergePhase = 'idle' | 'suck' | 'collapse' | 'explode' | 'spawn' | 'done';
+export type MergePhase =
+  | 'idle'
+  | 'suck'
+  | 'collapse'
+  | 'explode'
+  | 'spawn'
+  | 'done';
 
 export interface MergeFrameState {
   phase: MergePhase;
@@ -174,8 +180,10 @@ export class BlackholeMergeLayer {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const burstRadius = 2 + Math.random() * 4;
-      positions[particleIndex * 3] = Math.sin(phi) * Math.cos(theta) * burstRadius;
-      positions[particleIndex * 3 + 1] = Math.sin(phi) * Math.sin(theta) * burstRadius;
+      positions[particleIndex * 3] =
+        Math.sin(phi) * Math.cos(theta) * burstRadius;
+      positions[particleIndex * 3 + 1] =
+        Math.sin(phi) * Math.sin(theta) * burstRadius;
       positions[particleIndex * 3 + 2] = Math.cos(phi) * burstRadius;
       const mix = Math.random();
       const lerpedColor = colorA.clone().lerp(colorB, mix);
@@ -212,7 +220,11 @@ export class BlackholeMergeLayer {
       mesh.rotation.x = Math.PI / 2;
       mesh.scale.setScalar(0.5 + ringIndex * 0.3);
       this.group.add(mesh);
-      this.shockRings.push({ mesh, material: mat, startTime: now + ringIndex * 80 });
+      this.shockRings.push({
+        mesh,
+        material: mat,
+        startTime: now + ringIndex * 80,
+      });
     }
   }
 
@@ -220,7 +232,8 @@ export class BlackholeMergeLayer {
     const expand = easeOutCubic(progress);
     if (this.burstPoints) {
       this.burstPoints.scale.setScalar(1 + expand * 18);
-      (this.burstPoints.material as THREE.PointsMaterial).opacity = (1 - progress ** 0.7) * 0.95;
+      (this.burstPoints.material as THREE.PointsMaterial).opacity =
+        (1 - progress ** 0.7) * 0.95;
     }
     for (const ring of this.shockRings) {
       const ringT = Math.min((now - ring.startTime) / MERGE_EXPLODE_MS, 1);

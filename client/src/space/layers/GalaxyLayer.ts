@@ -63,7 +63,11 @@ export class GalaxyLayer {
     let entry = this.entries.get(archive.id);
     if (!entry) {
       const labelText = formatEventCount(archive.eventCount);
-      const visual = this.factory.createGalaxy(archive.eventCount, archive.id, labelText);
+      const visual = this.factory.createGalaxy(
+        archive.eventCount,
+        archive.id,
+        labelText,
+      );
       visual.group.position.copy(worldPosition);
       this.group.add(visual.group);
       entry = { archiveId: archive.id, visual };

@@ -2,7 +2,11 @@ import { useEffect, useRef, type RefObject } from 'react';
 import type { EventView } from '../types/event';
 import { eventColor } from '../types/event';
 import type { GraphData } from '../space/utils/graphBuilder';
-import type { CosmosViewMode, GalaxyArchiveRef, SpaceScene } from '../space/SpaceScene';
+import type {
+  CosmosViewMode,
+  GalaxyArchiveRef,
+  SpaceScene,
+} from '../space/SpaceScene';
 
 interface PendingMergeRef {
   id: string;
@@ -39,7 +43,8 @@ export function useSpaceEventSync(
     if (!scene || scene.isMergeAnimating()) return;
     if (cosmosRef.current.pendingMerge) return;
 
-    const { mode, archives, detailGraphData, onDetailLayoutReady } = cosmosRef.current;
+    const { mode, archives, detailGraphData, onDetailLayoutReady } =
+      cosmosRef.current;
 
     const applyLayout = () => {
       scene.setCosmosLayout({
@@ -65,7 +70,13 @@ export function useSpaceEventSync(
     }
 
     applyLayout();
-  }, [graphData, cosmos.mode, cosmos.archives, cosmos.detailGraphData, sceneRef]);
+  }, [
+    graphData,
+    cosmos.mode,
+    cosmos.archives,
+    cosmos.detailGraphData,
+    sceneRef,
+  ]);
 
   const mergeCompletedRef = useRef(false);
 
@@ -120,7 +131,11 @@ export function useSpaceEventSync(
     scene.updateGraph(graphData);
 
     const currentActiveTypes = activeTypesRef.current;
-    for (let eventIndex = activeEvents.length - 1; eventIndex >= 0; eventIndex--) {
+    for (
+      let eventIndex = activeEvents.length - 1;
+      eventIndex >= 0;
+      eventIndex--
+    ) {
       const event = activeEvents[eventIndex]!;
       if (seenEventIds.current.has(event.id)) continue;
       seenEventIds.current.add(event.id);

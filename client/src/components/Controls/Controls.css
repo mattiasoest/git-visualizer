@@ -11,7 +11,10 @@
   font-size: 0.8rem;
   cursor: pointer;
   backdrop-filter: blur(6px);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s;
 }
 
 .space-auto-rotate-btn:hover {
@@ -33,7 +36,11 @@
   font-size: 0.8rem;
   cursor: pointer;
   backdrop-filter: blur(6px);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s, opacity 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s,
+    opacity 0.2s;
 }
 
 .space-labels-btn[aria-pressed='false'] {

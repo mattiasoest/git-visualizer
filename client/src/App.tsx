@@ -12,10 +12,14 @@ function eventTypeLabel(type: string): string {
 export default function App() {
   useViewportHeight();
   const { events, connectionStatus } = useEventStream();
-  const [activeTypes, setActiveTypes] = useState<Set<string>>(() => new Set(FILTERABLE_TYPES));
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(
+    () => new Set(FILTERABLE_TYPES),
+  );
 
   const eventCountsByType = useMemo(() => {
-    const counts = Object.fromEntries(FILTERABLE_TYPES.map((type) => [type, 0]));
+    const counts = Object.fromEntries(
+      FILTERABLE_TYPES.map((type) => [type, 0]),
+    );
     for (const event of events) {
       if (event.type in counts) {
         counts[event.type] += 1;
@@ -54,7 +58,9 @@ export default function App() {
       <header className="app-header">
         <div className="app-header__brand">
           <h1>GitHub Cosmos</h1>
-          <p className="subtitle">Live public activity across the open-source universe</p>
+          <p className="subtitle">
+            Live public activity across the open-source universe
+          </p>
         </div>
         <div className="filters" role="toolbar" aria-label="Event type filters">
           {FILTERABLE_TYPES.map((type) => (
@@ -62,7 +68,9 @@ export default function App() {
               key={type}
               type="button"
               className={`filter-chip ${activeTypes.has(type) ? 'active' : ''}`}
-              style={{ '--chip-color': eventColor(type) } as React.CSSProperties}
+              style={
+                { '--chip-color': eventColor(type) } as React.CSSProperties
+              }
               onClick={() => toggleType(type)}
             >
               {eventTypeLabel(type)}
@@ -89,10 +97,16 @@ export default function App() {
             <span
               key={type}
               className="status-bar__type-count"
-              style={{ '--type-color': eventColor(type) } as React.CSSProperties}
+              style={
+                { '--type-color': eventColor(type) } as React.CSSProperties
+              }
             >
-              <span className="status-bar__type-label">{eventTypeLabel(type)}</span>
-              <span className="status-bar__type-value">{eventCountsByType[type]}</span>
+              <span className="status-bar__type-label">
+                {eventTypeLabel(type)}
+              </span>
+              <span className="status-bar__type-value">
+                {eventCountsByType[type]}
+              </span>
             </span>
           ))}
         </span>

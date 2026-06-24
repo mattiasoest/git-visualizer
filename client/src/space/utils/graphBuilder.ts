@@ -4,7 +4,7 @@ import { eventColor } from '../../types/event';
 export interface GraphNode {
   id: string;
   label: string;
-  kind: "repo" | "event";
+  kind: 'repo' | 'event';
   eventCount: number;
   eventType?: string;
   color?: string;
@@ -21,7 +21,7 @@ export interface GraphLink {
   weight: number;
   color: string;
   key: string;
-  kind: "tether";
+  kind: 'tether';
 }
 
 export interface GraphData {
@@ -122,15 +122,17 @@ export function buildGraph(events: EventView[]): GraphData {
     const nodeId = eventNodeId(event.id);
     const color = eventColor(event.type);
     const displayLabel =
-      event.type === "PushEvent" && event.commitMessage
+      event.type === 'PushEvent' && event.commitMessage
         ? event.commitMessage
         : event.summary;
 
-    const ownerOrg = repoName.includes("/") ? repoName.split("/")[0]! : repoName;
+    const ownerOrg = repoName.includes('/')
+      ? repoName.split('/')[0]!
+      : repoName;
     const repoNode = nodes.get(repoId) ?? {
       id: repoId,
-      label: repoName.split("/").pop() ?? repoName,
-      kind: "repo" as const,
+      label: repoName.split('/').pop() ?? repoName,
+      kind: 'repo' as const,
       ownerOrg,
       eventCount: 0,
     };
@@ -140,7 +142,7 @@ export function buildGraph(events: EventView[]): GraphData {
     nodes.set(nodeId, {
       id: nodeId,
       label: displayLabel,
-      kind: "event" as const,
+      kind: 'event' as const,
       eventType: event.type,
       color,
       parentRepoId: repoId,
@@ -157,7 +159,7 @@ export function buildGraph(events: EventView[]): GraphData {
       weight: 1,
       color,
       key: tetherKey,
-      kind: "tether" as const,
+      kind: 'tether' as const,
     });
   }
 
@@ -169,8 +171,8 @@ export function buildGraph(events: EventView[]): GraphData {
   }
 
   const filteredNodes = Array.from(nodes.values()).filter((node) => {
-    if (node.kind === "repo") return linkedRepoIds.has(node.id);
-    if (node.kind === "event") return linkedEventIds.has(node.id);
+    if (node.kind === 'repo') return linkedRepoIds.has(node.id);
+    if (node.kind === 'event') return linkedEventIds.has(node.id);
     return true;
   });
 
@@ -180,15 +182,15 @@ export function buildGraph(events: EventView[]): GraphData {
 export function graphDataFingerprint(data: GraphData): string {
   const nodePart = data.nodes
     .map((node) =>
-      node.kind === "event"
+      node.kind === 'event'
         ? `${node.id}:${node.actorLogin}:${node.label}`
         : `${node.id}:${node.eventCount}`,
     )
     .sort()
-    .join("|");
+    .join('|');
   const linkPart = data.links
     .map((link) => `${link.key}:${link.weight}`)
     .sort()
-    .join("|");
+    .join('|');
   return `${nodePart}::${linkPart}`;
 }

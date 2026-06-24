@@ -12,7 +12,10 @@ export interface ClusterArchive {
   mergedAt: number;
 }
 
-function allocateGalaxyId(archives: ClusterArchive[], pending: ClusterArchive | null): string {
+function allocateGalaxyId(
+  archives: ClusterArchive[],
+  pending: ClusterArchive | null,
+): string {
   const used = new Set<string>();
   for (const archive of archives) used.add(archive.id);
   if (pending) used.add(pending.id);
@@ -25,14 +28,18 @@ export function useClusterArchives(allEvents: EventView[]) {
   const [archives, setArchives] = useState<ClusterArchive[]>([]);
   const [pendingMerge, setPendingMerge] = useState<ClusterArchive | null>(null);
   const [viewMode, setViewMode] = useState<CosmosViewMode>('overview');
-  const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
+  const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(
+    null,
+  );
   const [isPreparingDetail, setIsPreparingDetail] = useState(false);
   const mergeCompletedIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (pendingMerge) return;
 
-    const archivedIds = new Set(archives.flatMap((archive) => archive.events.map((event) => event.id)));
+    const archivedIds = new Set(
+      archives.flatMap((archive) => archive.events.map((event) => event.id)),
+    );
     const active = allEvents.filter((event) => !archivedIds.has(event.id));
     if (active.length < MERGE_EVENT_THRESHOLD) return;
 
@@ -61,7 +68,10 @@ export function useClusterArchives(allEvents: EventView[]) {
   }, []);
 
   const archivedEventIds = useMemo(
-    () => new Set(archives.flatMap((archive) => archive.events.map((event) => event.id))),
+    () =>
+      new Set(
+        archives.flatMap((archive) => archive.events.map((event) => event.id)),
+      ),
     [archives],
   );
 
@@ -73,7 +83,8 @@ export function useClusterArchives(allEvents: EventView[]) {
   const activeEvents = useMemo(
     () =>
       allEvents.filter(
-        (event) => !archivedEventIds.has(event.id) && !pendingEventIds.has(event.id),
+        (event) =>
+          !archivedEventIds.has(event.id) && !pendingEventIds.has(event.id),
       ),
     [allEvents, archivedEventIds, pendingEventIds],
   );
@@ -88,12 +99,15 @@ export function useClusterArchives(allEvents: EventView[]) {
     [archives, selectedArchiveId],
   );
 
-  const selectGalaxy = useCallback((archiveId: string) => {
-    if (pendingMerge) return;
-    setIsPreparingDetail(true);
-    setSelectedArchiveId(archiveId);
-    setViewMode('detail');
-  }, [pendingMerge]);
+  const selectGalaxy = useCallback(
+    (archiveId: string) => {
+      if (pendingMerge) return;
+      setIsPreparingDetail(true);
+      setSelectedArchiveId(archiveId);
+      setViewMode('detail');
+    },
+    [pendingMerge],
+  );
 
   const completeDetailPrepare = useCallback(() => {
     setIsPreparingDetail(false);

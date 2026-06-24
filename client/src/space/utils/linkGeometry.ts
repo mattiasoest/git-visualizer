@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 
-export function createLinkGeometry(source: THREE.Vector3, target: THREE.Vector3): THREE.BufferGeometry {
+export function createLinkGeometry(
+  source: THREE.Vector3,
+  target: THREE.Vector3,
+): THREE.BufferGeometry {
   const positions = new Float32Array([
     source.x,
     source.y,

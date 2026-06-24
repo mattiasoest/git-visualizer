@@ -32,13 +32,21 @@ export function hashToUnitVector(id: string): THREE.Vector3 {
   );
 }
 
-export function eventOrbitAngle(eventId: string, time = 0, phaseOffset = 0): number {
+export function eventOrbitAngle(
+  eventId: string,
+  time = 0,
+  phaseOffset = 0,
+): number {
   const hash = hashToUnitVector(eventId);
   const baseAngle = (hash.x + 1) * Math.PI;
   return baseAngle + time * ORBIT_ANGULAR_SPEED + hash.z * 0.35 + phaseOffset;
 }
 
-export function eventOrbitOffset(eventId: string, time = 0, phaseOffset = 0): THREE.Vector3 {
+export function eventOrbitOffset(
+  eventId: string,
+  time = 0,
+  phaseOffset = 0,
+): THREE.Vector3 {
   const hash = hashToUnitVector(eventId);
   const radius = EVENT_ORBIT_RADIUS + (hash.y + 1) * 2;
   const angle = eventOrbitAngle(eventId, time, phaseOffset);
@@ -117,7 +125,9 @@ export function computeHierarchicalPositions(
 
   const clusters = buildOrgClusters(repos);
   for (const cluster of clusters) {
-    const hubPos = scratchA.copy(cluster.hubDirection).multiplyScalar(META_ORBIT_BASE);
+    const hubPos = scratchA
+      .copy(cluster.hubDirection)
+      .multiplyScalar(META_ORBIT_BASE);
     const useSubSphere = cluster.repoIds.length >= ORG_SPLIT_THRESHOLD;
 
     for (const repoId of cluster.repoIds) {
@@ -127,9 +137,13 @@ export function computeHierarchicalPositions(
       const direction = hashToUnitVector(repoId).normalize();
 
       if (useSubSphere) {
-        scratchB.copy(hubPos).add(direction.multiplyScalar(SUB_ORBIT_RADIUS + activityBump));
+        scratchB
+          .copy(hubPos)
+          .add(direction.multiplyScalar(SUB_ORBIT_RADIUS + activityBump));
       } else {
-        scratchB.copy(hubPos).add(direction.multiplyScalar(SUB_ORBIT_MIN + activityBump * 0.5));
+        scratchB
+          .copy(hubPos)
+          .add(direction.multiplyScalar(SUB_ORBIT_MIN + activityBump * 0.5));
       }
       positions.set(repoId, scratchB.clone());
     }

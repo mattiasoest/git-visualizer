@@ -12,8 +12,17 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 0%, rgba(60, 30, 120, 0.25) 0%, transparent 55%),
-    radial-gradient(ellipse at 80% 90%, rgba(20, 80, 120, 0.15) 0%, transparent 40%),
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      rgba(60, 30, 120, 0.25) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse at 80% 90%,
+      rgba(20, 80, 120, 0.15) 0%,
+      transparent 40%
+    ),
     #020014;
 }
 

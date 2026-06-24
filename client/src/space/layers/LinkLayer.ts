@@ -65,7 +65,9 @@ export class LinkLayer {
       const visible =
         !this.nodes.isEndpointSpawnDeferred(sourceId) &&
         this.nodes.isEventEndpointVisible(sourceId);
-      (line.material as THREE.LineBasicMaterial).opacity = visible ? baseOpacity * clamped : 0;
+      (line.material as THREE.LineBasicMaterial).opacity = visible
+        ? baseOpacity * clamped
+        : 0;
     }
   }
 
@@ -84,7 +86,9 @@ export class LinkLayer {
       const visible =
         !this.nodes.isEndpointSpawnDeferred(sourceId) &&
         this.nodes.isEventEndpointVisible(sourceId);
-      (line.material as THREE.LineBasicMaterial).opacity = visible ? baseOpacity : 0;
+      (line.material as THREE.LineBasicMaterial).opacity = visible
+        ? baseOpacity
+        : 0;
     }
   }
 
@@ -95,7 +99,8 @@ export class LinkLayer {
       const sourceId = key.slice(0, arrowIdx);
       const baseOpacity = this.linkBaseOpacity.get(key) ?? 0;
       const typeVisible =
-        !sourceId.startsWith('event:') || this.nodes.isEventEndpointVisible(sourceId);
+        !sourceId.startsWith('event:') ||
+        this.nodes.isEventEndpointVisible(sourceId);
       const spawnVisible = !this.nodes.isEndpointSpawnDeferred(sourceId);
       (line.material as THREE.LineBasicMaterial).opacity =
         typeVisible && spawnVisible ? baseOpacity : 0;

@@ -7,7 +7,11 @@ import {
   REPO_SPAWN_MS,
 } from '../utils/constants';
 import { eventNodeId } from '../utils/graphBuilder';
-import type { EventFlight, EventFlightPayload, QueuedFlight } from '../utils/types';
+import type {
+  EventFlight,
+  EventFlightPayload,
+  QueuedFlight,
+} from '../utils/types';
 import type { EventParticleLayer } from './EventParticleLayer';
 import type { GraphNodeLayer } from './GraphNodeLayer';
 
@@ -40,7 +44,11 @@ export class EventFlightLayer {
     const now = performance.now();
     let writeIndex = 0;
 
-    for (let queueIndex = 0; queueIndex < this.flightQueue.length; queueIndex++) {
+    for (
+      let queueIndex = 0;
+      queueIndex < this.flightQueue.length;
+      queueIndex++
+    ) {
       const next = this.flightQueue[queueIndex]!;
       const targetId = eventNodeId(next.eventId);
       const target = this.nodes.getNodeState(targetId);
@@ -72,7 +80,11 @@ export class EventFlightLayer {
   update(now: number): void {
     let writeIndex = 0;
 
-    for (let flightIndex = 0; flightIndex < this.flights.length; flightIndex++) {
+    for (
+      let flightIndex = 0;
+      flightIndex < this.flights.length;
+      flightIndex++
+    ) {
       const flight = this.flights[flightIndex]!;
       this.refreshFlightCurve(flight);
       const elapsed = now - flight.startTime;
@@ -83,12 +95,24 @@ export class EventFlightLayer {
       const omt2 = oneMinusT * oneMinusT;
       const e2 = eased * eased;
       const pos = this.flightPosition;
-      pos.x = omt2 * flight.from.x + 2 * oneMinusT * eased * flight.mid.x + e2 * flight.to.x;
-      pos.y = omt2 * flight.from.y + 2 * oneMinusT * eased * flight.mid.y + e2 * flight.to.y;
-      pos.z = omt2 * flight.from.z + 2 * oneMinusT * eased * flight.mid.z + e2 * flight.to.z;
+      pos.x =
+        omt2 * flight.from.x +
+        2 * oneMinusT * eased * flight.mid.x +
+        e2 * flight.to.x;
+      pos.y =
+        omt2 * flight.from.y +
+        2 * oneMinusT * eased * flight.mid.y +
+        e2 * flight.to.y;
+      pos.z =
+        omt2 * flight.from.z +
+        2 * oneMinusT * eased * flight.mid.z +
+        e2 * flight.to.z;
 
-      const size = flight.startSize + (flight.endSize - flight.startSize) * eased;
-      const positionAttr = flight.points.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const size =
+        flight.startSize + (flight.endSize - flight.startSize) * eased;
+      const positionAttr = flight.points.geometry.getAttribute(
+        'position',
+      ) as THREE.BufferAttribute;
       const arr = positionAttr.array as Float32Array;
       arr[0] = pos.x;
       arr[1] = pos.y;
@@ -100,7 +124,10 @@ export class EventFlightLayer {
         this.flights[writeIndex++] = flight;
       } else {
         const target = this.nodes.getNodeState(flight.targetId);
-        if (target?.node.kind === 'event' && this.nodes.isSpawnDeferred(target)) {
+        if (
+          target?.node.kind === 'event' &&
+          this.nodes.isSpawnDeferred(target)
+        ) {
           this.eventParticles.setWorldPosition(flight.targetId, flight.to);
           this.nodes.revealEventNode(target);
         }
@@ -143,7 +170,9 @@ export class EventFlightLayer {
     } else {
       this.flightScratch.normalize();
     }
-    const from = repoPos.clone().addScaledVector(this.flightScratch, repo.baseRadius * 1.15);
+    const from = repoPos
+      .clone()
+      .addScaledVector(this.flightScratch, repo.baseRadius * 1.15);
     const mid = new THREE.Vector3().lerpVectors(from, to, 0.5);
     mid.y += from.distanceTo(to) * 0.08;
 

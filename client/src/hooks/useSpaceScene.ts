@@ -44,7 +44,10 @@ export function useSpaceScene(onGalaxyTap?: (archiveId: string) => void) {
     const observer = new ResizeObserver(scheduleSync);
     observer.observe(container);
 
-    const layoutTargets = [container.parentElement, container.parentElement?.parentElement];
+    const layoutTargets = [
+      container.parentElement,
+      container.parentElement?.parentElement,
+    ];
     for (const target of layoutTargets) {
       if (target) observer.observe(target);
     }

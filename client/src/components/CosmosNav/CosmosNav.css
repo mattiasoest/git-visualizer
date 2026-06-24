@@ -26,7 +26,10 @@
   font-size: 0.75rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .cosmos-nav__btn:hover {

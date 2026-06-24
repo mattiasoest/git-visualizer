@@ -13,7 +13,10 @@ import {
   ACTIVE_CLUSTER_CAMERA_DISTANCE,
   GALAXY_CAMERA_DISTANCE,
 } from './utils/constants';
-import { activeClusterWorldOffset, archiveWorldOffset } from './utils/galaxyLayout';
+import {
+  activeClusterWorldOffset,
+  archiveWorldOffset,
+} from './utils/galaxyLayout';
 import { disposeLabelTextures } from './utils/labelSprite';
 import { RaycastPicker } from './utils/raycastPicker';
 import { pointsAttenuationScale } from './utils/sizedPointMaterial';
@@ -117,7 +120,12 @@ export class SpaceScene {
     this.scene.fog = new THREE.FogExp2(0x020014, 0.0035);
 
     const { clientWidth, clientHeight } = container;
-    this.camera = new THREE.PerspectiveCamera(55, clientWidth / clientHeight, 0.1, 500);
+    this.camera = new THREE.PerspectiveCamera(
+      55,
+      clientWidth / clientHeight,
+      0.1,
+      500,
+    );
     this.camera.position.set(0, 35, OVERVIEW_CAMERA_DISTANCE_BASE);
 
     this.renderer = new THREE.WebGLRenderer({
@@ -182,10 +190,18 @@ export class SpaceScene {
 
     this.activeLinks = new LinkLayer(this.activeNodes);
     this.detailLinks = new LinkLayer(this.detailNodes);
-    this.activeNodes.setLinkVisibilityHandler(() => this.activeLinks.applyVisibility());
-    this.detailNodes.setLinkVisibilityHandler(() => this.detailLinks.applyVisibility());
+    this.activeNodes.setLinkVisibilityHandler(() =>
+      this.activeLinks.applyVisibility(),
+    );
+    this.detailNodes.setLinkVisibilityHandler(() =>
+      this.detailLinks.applyVisibility(),
+    );
 
-    this.flights = new EventFlightLayer(this.activeNodes, this.activeEventParticles, this.pointSprite);
+    this.flights = new EventFlightLayer(
+      this.activeNodes,
+      this.activeEventParticles,
+      this.pointSprite,
+    );
 
     this.activeClusterGroup.add(this.activeLinks.group);
     this.activeClusterGroup.add(this.activeEventParticles.group);
@@ -212,7 +228,9 @@ export class SpaceScene {
     this.galaxies.sync(archives);
     this.updateActiveClusterPosition(archives.length);
 
-    const activeLinks = this.activeNodes.updateGraph(activeGraphData, () => this.flights.clear());
+    const activeLinks = this.activeNodes.updateGraph(activeGraphData, () =>
+      this.flights.clear(),
+    );
     this.activeLinks.syncLinks(activeLinks);
 
     if (mode === 'detail' && detailGraphData) {
@@ -220,20 +238,30 @@ export class SpaceScene {
       this.galaxies.group.visible = false;
       this.detailClusterGroup.visible = true;
 
-      const detailLinks = this.detailNodes.updateGraph(detailGraphData, () => {});
+      const detailLinks = this.detailNodes.updateGraph(
+        detailGraphData,
+        () => {},
+      );
       this.detailLinks.syncLinks(detailLinks);
       this.detailNodes.instantRevealAllEvents();
 
       this.picker.setTargets([], false);
       if (prevMode !== 'detail') {
-        this.focusCamera(this.scratchTarget.set(0, 0, 0), DETAIL_CAMERA_DISTANCE, true);
+        this.focusCamera(
+          this.scratchTarget.set(0, 0, 0),
+          DETAIL_CAMERA_DISTANCE,
+          true,
+        );
       }
     } else {
       this.activeClusterGroup.visible = true;
       this.galaxies.group.visible = archives.length > 0;
       this.detailClusterGroup.visible = false;
 
-      this.picker.setTargets(this.galaxies.getHitTargets(), archives.length > 0);
+      this.picker.setTargets(
+        this.galaxies.getHitTargets(),
+        archives.length > 0,
+      );
     }
 
     this.updateOrbitLimits(archives.length);
@@ -245,7 +273,9 @@ export class SpaceScene {
 
   updateGraph(data: GraphData): void {
     if (this.mergeInProgress) return;
-    const links = this.activeNodes.updateGraph(data, () => this.flights.clear());
+    const links = this.activeNodes.updateGraph(data, () =>
+      this.flights.clear(),
+    );
     this.activeLinks.syncLinks(links);
   }
 
@@ -253,7 +283,11 @@ export class SpaceScene {
     return this.mergeInProgress;
   }
 
-  startMergeAnimation(archive: GalaxyArchiveRef, archiveIndex: number, onComplete: () => void): void {
+  startMergeAnimation(
+    archive: GalaxyArchiveRef,
+    archiveIndex: number,
+    onComplete: () => void,
+  ): void {
     if (this.mergeInProgress || this.viewMode === 'detail') return;
 
     this.mergeInProgress = true;
@@ -273,7 +307,9 @@ export class SpaceScene {
   }
 
   loadMergeGraph(data: GraphData): void {
-    const links = this.activeNodes.updateGraph(data, () => this.flights.clear());
+    const links = this.activeNodes.updateGraph(data, () =>
+      this.flights.clear(),
+    );
     this.activeLinks.syncLinks(links);
     this.activeNodes.instantRevealAllEvents();
   }
@@ -309,7 +345,11 @@ export class SpaceScene {
     this.focusCamera(this.scratchTarget.set(0, 0, 0), distance, !immediate);
   }
 
-  focusGalaxy(archiveIndex: number, _archiveCount: number, immediate = false): void {
+  focusGalaxy(
+    archiveIndex: number,
+    _archiveCount: number,
+    immediate = false,
+  ): void {
     const position = archiveWorldOffset(archiveIndex);
     this.focusCamera(position, GALAXY_CAMERA_DISTANCE, !immediate);
   }
@@ -440,17 +480,30 @@ export class SpaceScene {
   }
 
   private updateActiveClusterPosition(archiveCount: number): void {
-    this.activeClusterGroup.position.copy(activeClusterWorldOffset(archiveCount));
+    this.activeClusterGroup.position.copy(
+      activeClusterWorldOffset(archiveCount),
+    );
   }
 
   private updateCameraAnimation(delta: number): boolean {
     if (!this.cameraAnim) return false;
 
-    this.cameraAnim.progress = Math.min(this.cameraAnim.progress + delta * CAMERA_LERP_SPEED, 1);
+    this.cameraAnim.progress = Math.min(
+      this.cameraAnim.progress + delta * CAMERA_LERP_SPEED,
+      1,
+    );
     const cameraEaseT = 1 - (1 - this.cameraAnim.progress) ** 3;
 
-    this.controls.target.lerpVectors(this.cameraAnim.fromTarget, this.cameraAnim.toTarget, cameraEaseT);
-    this.camera.position.lerpVectors(this.cameraAnim.fromPosition, this.cameraAnim.toPosition, cameraEaseT);
+    this.controls.target.lerpVectors(
+      this.cameraAnim.fromTarget,
+      this.cameraAnim.toTarget,
+      cameraEaseT,
+    );
+    this.camera.position.lerpVectors(
+      this.cameraAnim.fromPosition,
+      this.cameraAnim.toPosition,
+      cameraEaseT,
+    );
 
     if (this.cameraAnim.progress >= 1) {
       this.controls.enableDamping = this.cameraAnim.dampingWasEnabled;
@@ -472,7 +525,10 @@ export class SpaceScene {
     this.activeEventParticles.clearMergeSuck();
 
     if (spawnedArchive) {
-      this.galaxies.finalizePostMergeArchive(this.mergeArchiveCountBefore, spawnedArchive.id);
+      this.galaxies.finalizePostMergeArchive(
+        this.mergeArchiveCountBefore,
+        spawnedArchive.id,
+      );
     }
     this.updateActiveClusterPosition(newArchiveCount);
 
@@ -510,13 +566,12 @@ export class SpaceScene {
       this.activeClusterGroup.scale.setScalar(frame.clusterScale);
     } else {
       this.activeClusterGroup.rotation.y = 0;
-      this.activeClusterGroup.scale.setScalar(Math.max(frame.clusterScale, 0.001));
+      this.activeClusterGroup.scale.setScalar(
+        Math.max(frame.clusterScale, 0.001),
+      );
     }
 
-    if (
-      this.mergeSpawnGalaxy &&
-      frame.phase === 'spawn'
-    ) {
+    if (this.mergeSpawnGalaxy && frame.phase === 'spawn') {
       this.galaxies.spawnGalaxyAt(
         this.mergeSpawnGalaxy,
         this.mergeWorldPosition,

@@ -2,7 +2,12 @@
   --app-height: 100dvh;
   color: #d4e4ff;
   background: #020014;
-  font-family: 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+  font-family:
+    'Segoe UI',
+    Inter,
+    system-ui,
+    -apple-system,
+    sans-serif;
   line-height: 1.5;
 }
 
@@ -37,7 +42,11 @@ body {
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid rgba(120, 140, 255, 0.15);
-  background: linear-gradient(180deg, rgba(8, 12, 40, 0.95) 0%, rgba(2, 0, 20, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(8, 12, 40, 0.95) 0%,
+    rgba(2, 0, 20, 0.98) 100%
+  );
   backdrop-filter: blur(8px);
   position: relative;
   z-index: 2;
@@ -99,7 +108,10 @@ body {
   font-size: 0.8rem;
   flex-shrink: 0;
   white-space: nowrap;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s;
 }
 
 .filter-chip:hover {

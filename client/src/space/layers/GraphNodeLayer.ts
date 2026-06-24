@@ -14,7 +14,10 @@ import {
   disposeEventLabel,
 } from '../utils/labelSprite';
 import type { NodeState } from '../utils/types';
-import { EVENT_SPAWN_DEFERRED, type EventParticleLayer } from './EventParticleLayer';
+import {
+  EVENT_SPAWN_DEFERRED,
+  type EventParticleLayer,
+} from './EventParticleLayer';
 import type { RepoVisualFactory } from './RepoVisualFactory';
 
 export class GraphNodeLayer {
@@ -103,7 +106,8 @@ export class GraphNodeLayer {
   }
 
   markEventSpawned(nodeId: string): void {
-    if (!nodeId.startsWith('event:') || this.spawnedEventNodeIds.has(nodeId)) return;
+    if (!nodeId.startsWith('event:') || this.spawnedEventNodeIds.has(nodeId))
+      return;
     this.spawnedEventNodeIds.add(nodeId);
     this.syncEventParticles();
     this.applyLinkVisibility();
@@ -171,7 +175,8 @@ export class GraphNodeLayer {
     this.mergeBasePositions.clear();
     for (const [id, state] of this.nodeStates) {
       if (state.node.kind === 'event') continue;
-      const base = this.positions.get(id)?.clone() ?? state.anchor.position.clone();
+      const base =
+        this.positions.get(id)?.clone() ?? state.anchor.position.clone();
       this.mergeBasePositions.set(id, base);
     }
   }
@@ -281,9 +286,16 @@ export class GraphNodeLayer {
         }
 
         if (state.spawnStartTime > 0) {
-          const spawnT = Math.min((now - state.spawnStartTime) / EVENT_SPAWN_MS, 1);
+          const spawnT = Math.min(
+            (now - state.spawnStartTime) / EVENT_SPAWN_MS,
+            1,
+          );
           if (spawnT < 1) {
-            if (state.node.label && state.node.actorLogin && this.labelsVisible) {
+            if (
+              state.node.label &&
+              state.node.actorLogin &&
+              this.labelsVisible
+            ) {
               const labelT = Math.max(0, (spawnT - 0.4) / 0.6);
               if (labelT > 0) {
                 state.label.visible = true;
@@ -320,7 +332,10 @@ export class GraphNodeLayer {
       if (this.isSpawnDeferred(state)) {
         state.visual.scale.setScalar(0);
       } else if (state.spawnStartTime > 0) {
-        const spawnT = Math.min((now - state.spawnStartTime) / REPO_SPAWN_MS, 1);
+        const spawnT = Math.min(
+          (now - state.spawnStartTime) / REPO_SPAWN_MS,
+          1,
+        );
         scaleMul = 1 - (1 - spawnT) ** 3;
 
         if (this.labelsVisible) {
@@ -340,7 +355,9 @@ export class GraphNodeLayer {
       if (!this.isSpawnDeferred(state)) {
         const repoIdle = isRepo && state.spawnStartTime <= 0;
         if (scaleMul < 1 || repoIdle) {
-          const breathe = repoIdle ? 1 + Math.sin(time * 1.2 + state.position.x) * 0.03 : 1;
+          const breathe = repoIdle
+            ? 1 + Math.sin(time * 1.2 + state.position.x) * 0.03
+            : 1;
           state.visual.scale.setScalar(scaleMul * breathe);
         } else if (state.visual.scale.x !== 1) {
           state.visual.scale.setScalar(1);
@@ -350,7 +367,8 @@ export class GraphNodeLayer {
       if (isRepo) {
         state.visual.rotation.y = time * 0.32;
         state.visual.rotation.x = Math.sin(time * 0.28) * 0.18;
-        state.visual.rotation.z = Math.cos(time * 0.22 + state.position.z * 0.01) * 0.08;
+        state.visual.rotation.z =
+          Math.cos(time * 0.22 + state.position.z * 0.01) * 0.08;
 
         if (state.repoInnerCore?.visible) {
           state.repoInnerCore.rotation.y = -time * 1.1;
@@ -374,8 +392,14 @@ export class GraphNodeLayer {
     this.nodeStates.clear();
   }
 
-  private topologyChanged(activeIds: Set<string>, linkKeys: Set<string>): boolean {
-    if (activeIds.size !== this.nodeTopology.size || linkKeys.size !== this.linkTopology.size) {
+  private topologyChanged(
+    activeIds: Set<string>,
+    linkKeys: Set<string>,
+  ): boolean {
+    if (
+      activeIds.size !== this.nodeTopology.size ||
+      linkKeys.size !== this.linkTopology.size
+    ) {
       return true;
     }
     for (const id of activeIds) {
@@ -469,7 +493,10 @@ export class GraphNodeLayer {
     if (this.isSpawnDeferred(state)) return false;
     if (state.spawnStartTime > 0) return false;
     if (state.node.kind === 'event') {
-      return Boolean(state.node.label && state.node.actorLogin) && !this.eventParticles.isSuppressed(state.node.id);
+      return (
+        Boolean(state.node.label && state.node.actorLogin) &&
+        !this.eventParticles.isSuppressed(state.node.id)
+      );
     }
     return true;
   }
@@ -505,7 +532,10 @@ export class GraphNodeLayer {
   }
 
   private syncEventParticles(): void {
-    const burstGrouping = computeEventBurstGrouping(this.eventNodes, this.spawnedEventNodeIds);
+    const burstGrouping = computeEventBurstGrouping(
+      this.eventNodes,
+      this.spawnedEventNodeIds,
+    );
     const particles = this.eventNodes.map((node) => {
       const state = this.nodeStates.get(node.id);
       const burst = burstGrouping.get(node.id);
@@ -526,7 +556,11 @@ export class GraphNodeLayer {
       if (id.startsWith('repo:')) parentPositions.set(id, pos);
     }
 
-    this.eventParticles.sync(particles, parentPositions, this.clock.getElapsedTime());
+    this.eventParticles.sync(
+      particles,
+      parentPositions,
+      this.clock.getElapsedTime(),
+    );
   }
 
   private disposeNodeLabel(state: NodeState): void {
@@ -544,14 +578,20 @@ export class GraphNodeLayer {
     }
 
     if (!node.label || !node.actorLogin) {
-      const label = new THREE.Sprite(new THREE.SpriteMaterial({ visible: false }));
+      const label = new THREE.Sprite(
+        new THREE.SpriteMaterial({ visible: false }),
+      );
       label.visible = false;
       state.anchor.add(label);
       state.label = label;
       return;
     }
 
-    const label = createEventLabelSprite(node.actorLogin, node.label, node.color ?? '#8b949e');
+    const label = createEventLabelSprite(
+      node.actorLogin,
+      node.label,
+      node.color ?? '#8b949e',
+    );
     label.position.set(0, -2.2, 0);
     state.anchor.add(label);
     state.label = label;
@@ -581,7 +621,8 @@ export class GraphNodeLayer {
     if (existing) {
       const eventCountChanged = existing.node.eventCount !== node.eventCount;
       const labelChanged =
-        existing.node.label !== node.label || existing.node.actorLogin !== node.actorLogin;
+        existing.node.label !== node.label ||
+        existing.node.actorLogin !== node.actorLogin;
       existing.node = node;
       existing.position.copy(position);
       existing.anchor.position.copy(position);
@@ -591,7 +632,11 @@ export class GraphNodeLayer {
         existing.baseRadius = scale;
         this.repoFactory.syncVisualTier(existing, node.eventCount);
         this.repoFactory.syncOrbitRings(existing, node.eventCount);
-        this.repoFactory.applyScales(existing.visual, scale, existing.repoOrbitRings);
+        this.repoFactory.applyScales(
+          existing.visual,
+          scale,
+          existing.repoOrbitRings,
+        );
         this.repoFactory.applyColors(existing, node.eventCount);
       }
 
@@ -633,7 +678,11 @@ export class GraphNodeLayer {
     if (node.kind === 'event') {
       label =
         node.label && node.actorLogin
-          ? createEventLabelSprite(node.actorLogin, node.label, node.color ?? '#8b949e')
+          ? createEventLabelSprite(
+              node.actorLogin,
+              node.label,
+              node.color ?? '#8b949e',
+            )
           : new THREE.Sprite(new THREE.SpriteMaterial({ visible: false }));
       if (node.label && node.actorLogin) {
         label.position.set(0, -2.2, 0);
@@ -649,7 +698,8 @@ export class GraphNodeLayer {
       (label.material as THREE.SpriteMaterial).opacity = 0;
     }
 
-    const spawnStartTime = node.kind === 'repo' || node.kind === 'event' ? SPAWN_DEFERRED : 0;
+    const spawnStartTime =
+      node.kind === 'repo' || node.kind === 'event' ? SPAWN_DEFERRED : 0;
 
     const state: NodeState = {
       node,

@@ -1,7 +1,16 @@
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { ConnectionStatus, EventView } from '../types/event';
 
-function mergeEvents(existing: EventView[], incoming: EventView[]): EventView[] {
+function mergeEvents(
+  existing: EventView[],
+  incoming: EventView[],
+): EventView[] {
   const map = new Map<string, EventView>();
   for (const event of incoming) {
     map.set(event.id, event);
@@ -13,13 +22,15 @@ function mergeEvents(existing: EventView[], incoming: EventView[]): EventView[] 
   }
   return Array.from(map.values()).sort(
     (leftEvent, rightEvent) =>
-      new Date(rightEvent.createdAt).getTime() - new Date(leftEvent.createdAt).getTime(),
+      new Date(rightEvent.createdAt).getTime() -
+      new Date(leftEvent.createdAt).getTime(),
   );
 }
 
 export function useEventStream() {
   const [events, setEvents] = useState<EventView[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>('connecting');
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const pendingRef = useRef<EventView[]>([]);
@@ -52,7 +63,9 @@ export function useEventStream() {
       eventSourceRef.current.close();
     }
 
-    setConnectionStatus((status) => (status === 'connected' ? 'reconnecting' : 'connecting'));
+    setConnectionStatus((status) =>
+      status === 'connected' ? 'reconnecting' : 'connecting',
+    );
 
     const source = new EventSource('/api/stream/events');
     eventSourceRef.current = source;

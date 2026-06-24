@@ -18,7 +18,10 @@ interface SpaceVisualizationProps {
   activeTypes: Set<string>;
 }
 
-export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationProps) {
+export function SpaceVisualization({
+  events,
+  activeTypes,
+}: SpaceVisualizationProps) {
   const {
     archives,
     pendingMerge,
@@ -35,11 +38,21 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
   } = useClusterArchives(events);
 
   const graphData = useStableGraphData(activeEvents);
-  const { containerRef, sceneRef, sceneReady, autoRotating, labelsVisible, toggleLabels, resumeAutoRotate } =
-    useSpaceScene(selectGalaxy);
+  const {
+    containerRef,
+    sceneRef,
+    sceneReady,
+    autoRotating,
+    labelsVisible,
+    toggleLabels,
+    resumeAutoRotate,
+  } = useSpaceScene(selectGalaxy);
 
   const { navTarget, setNavTarget } = useCosmosNavigation(archives.length);
-  const archiveIds = useMemo(() => archives.map((archive) => archive.id), [archives]);
+  const archiveIds = useMemo(
+    () => archives.map((archive) => archive.id),
+    [archives],
+  );
   const prevArchiveCount = useRef(archives.length);
   const lastMergedGalaxyIdRef = useRef<string | null>(null);
   const navTargetAtMergeStartRef = useRef<CosmosNavTarget | null>(null);
@@ -61,7 +74,9 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
     navTargetAtMergeStartRef.current = null;
 
     const newGalaxyId =
-      lastMergedGalaxyIdRef.current ?? archives[archives.length - 1]?.id ?? null;
+      lastMergedGalaxyIdRef.current ??
+      archives[archives.length - 1]?.id ??
+      null;
     lastMergedGalaxyIdRef.current = null;
     prevArchiveCount.current = archives.length;
 
@@ -102,7 +117,11 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
   }, [sceneReady, viewMode, sceneRef, archiveIds, isMergeAnimating]);
 
   const galaxyArchives = useMemo(
-    () => archives.map((archive) => ({ id: archive.id, eventCount: archive.events.length })),
+    () =>
+      archives.map((archive) => ({
+        id: archive.id,
+        eventCount: archive.events.length,
+      })),
     [archives],
   );
 
@@ -136,7 +155,11 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
   return (
     <div className="space-visualization-shell">
       {viewMode === 'overview' && !isMergeAnimating && (
-        <CosmosNav archives={archives} navTarget={navTarget} onSelect={handleNavSelect} />
+        <CosmosNav
+          archives={archives}
+          navTarget={navTarget}
+          onSelect={handleNavSelect}
+        />
       )}
       <div ref={containerRef} className="space-visualization">
         <Controls
@@ -145,9 +168,13 @@ export function SpaceVisualization({ events, activeTypes }: SpaceVisualizationPr
           onToggleLabels={toggleLabels}
           onResumeAutoRotate={resumeAutoRotate}
         />
-        {viewMode === 'detail' && <GalaxyBackButton onBack={handleExitDetail} />}
+        {viewMode === 'detail' && (
+          <GalaxyBackButton onBack={handleExitDetail} />
+        )}
         {isPreparingDetail && <ClusterLoadingOverlay />}
-        {graphData.nodes.length === 0 && archives.length === 0 && !isMergeAnimating && <Placeholder />}
+        {graphData.nodes.length === 0 &&
+          archives.length === 0 &&
+          !isMergeAnimating && <Placeholder />}
       </div>
     </div>
   );

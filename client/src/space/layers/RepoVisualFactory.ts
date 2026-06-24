@@ -14,7 +14,10 @@ export class RepoVisualFactory {
   readonly burstRingGeo = new THREE.RingGeometry(1, 1.1, 24);
   private readonly repoParticleGeo = (() => {
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3));
+    geo.setAttribute(
+      'position',
+      new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3),
+    );
     return geo;
   })();
   private readonly repoOuterCrystalGeo = new THREE.IcosahedronGeometry(1, 1);
@@ -115,13 +118,43 @@ export class RepoVisualFactory {
     const coreHue = 0.48 + hueShift;
 
     return {
-      atmosphere: this.repoLayerColor(shellHue, 0.55, 0.18, 0.07, activityFactor),
+      atmosphere: this.repoLayerColor(
+        shellHue,
+        0.55,
+        0.18,
+        0.07,
+        activityFactor,
+      ),
       innerGlow: this.repoLayerColor(coreHue, 0.75, 0.42, 0.16, activityFactor),
-      outerShell: this.repoLayerColor(shellHue, 0.7, 0.38, 0.13, activityFactor),
+      outerShell: this.repoLayerColor(
+        shellHue,
+        0.7,
+        0.38,
+        0.13,
+        activityFactor,
+      ),
       outerWire: this.repoLayerColor(coreHue, 0.85, 0.62, 0.24, activityFactor),
-      innerCore: this.repoLayerColor(coreHue + 0.02, 0.9, 0.78, 0.2, activityFactor),
-      ringA: this.repoLayerColor(coreHue + 0.04, 0.9, 0.58, 0.18, activityFactor),
-      ringB: this.repoLayerColor(shellHue + 0.03, 0.65, 0.45, 0.11, activityFactor),
+      innerCore: this.repoLayerColor(
+        coreHue + 0.02,
+        0.9,
+        0.78,
+        0.2,
+        activityFactor,
+      ),
+      ringA: this.repoLayerColor(
+        coreHue + 0.04,
+        0.9,
+        0.58,
+        0.18,
+        activityFactor,
+      ),
+      ringB: this.repoLayerColor(
+        shellHue + 0.03,
+        0.65,
+        0.45,
+        0.11,
+        activityFactor,
+      ),
     };
   }
 
@@ -256,7 +289,11 @@ export class RepoVisualFactory {
     }
   }
 
-  applyScales(visual: THREE.Group, scale: number, orbitRings?: THREE.Mesh[]): void {
+  applyScales(
+    visual: THREE.Group,
+    scale: number,
+    orbitRings?: THREE.Mesh[],
+  ): void {
     visual.children[REPO_VISUAL.atmosphere].scale.setScalar(scale * 2.6);
     visual.children[REPO_VISUAL.innerGlow].scale.setScalar(scale * 1.25);
     visual.children[REPO_VISUAL.outerShell].scale.setScalar(scale);
@@ -268,7 +305,9 @@ export class RepoVisualFactory {
 
     if (orbitRings) {
       for (let ringIndex = 0; ringIndex < orbitRings.length; ringIndex++) {
-        orbitRings[ringIndex]!.scale.setScalar(scale * REPO_RING_SCALE[ringIndex]!);
+        orbitRings[ringIndex]!.scale.setScalar(
+          scale * REPO_RING_SCALE[ringIndex]!,
+        );
       }
     }
   }

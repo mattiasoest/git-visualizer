@@ -67,7 +67,11 @@ export class RaycastPicker {
     const dy = event.clientY - this.pointerDown.y;
     if (dx * dx + dy * dy > DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
 
-    const hit = this.intersectAt(event.clientX, event.clientY, this.pickTargets);
+    const hit = this.intersectAt(
+      event.clientX,
+      event.clientY,
+      this.pickTargets,
+    );
     if (!hit) return;
     const archiveId = hit.object.userData.archiveId as string | undefined;
     if (archiveId) this.onTap(archiveId);

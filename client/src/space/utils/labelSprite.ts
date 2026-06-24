@@ -31,17 +31,35 @@ function roundRect(
   ctx.beginPath();
   ctx.moveTo(rectX + cornerRadius, rectY);
   ctx.lineTo(rectX + width - cornerRadius, rectY);
-  ctx.quadraticCurveTo(rectX + width, rectY, rectX + width, rectY + cornerRadius);
+  ctx.quadraticCurveTo(
+    rectX + width,
+    rectY,
+    rectX + width,
+    rectY + cornerRadius,
+  );
   ctx.lineTo(rectX + width, rectY + height - cornerRadius);
-  ctx.quadraticCurveTo(rectX + width, rectY + height, rectX + width - cornerRadius, rectY + height);
+  ctx.quadraticCurveTo(
+    rectX + width,
+    rectY + height,
+    rectX + width - cornerRadius,
+    rectY + height,
+  );
   ctx.lineTo(rectX + cornerRadius, rectY + height);
-  ctx.quadraticCurveTo(rectX, rectY + height, rectX, rectY + height - cornerRadius);
+  ctx.quadraticCurveTo(
+    rectX,
+    rectY + height,
+    rectX,
+    rectY + height - cornerRadius,
+  );
   ctx.lineTo(rectX, rectY + cornerRadius);
   ctx.quadraticCurveTo(rectX, rectY, rectX + cornerRadius, rectY);
   ctx.closePath();
 }
 
-export function getLabelTexture(text: string, kind: 'actor' | 'repo'): THREE.CanvasTexture {
+export function getLabelTexture(
+  text: string,
+  kind: 'actor' | 'repo',
+): THREE.CanvasTexture {
   const key = `${kind}:${text}`;
   const cached = textureCache.get(key);
   if (cached) return cached;
@@ -86,7 +104,10 @@ export function getLabelTexture(text: string, kind: 'actor' | 'repo'): THREE.Can
   return texture;
 }
 
-export function createLabelSprite(text: string, kind: 'actor' | 'repo'): THREE.Sprite {
+export function createLabelSprite(
+  text: string,
+  kind: 'actor' | 'repo',
+): THREE.Sprite {
   const texture = getLabelTexture(text, kind);
   const material = new THREE.SpriteMaterial({
     map: texture,
@@ -118,7 +139,10 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-export function createCommitLabelSprite(text: string, accentColor: string): THREE.Sprite {
+export function createCommitLabelSprite(
+  text: string,
+  accentColor: string,
+): THREE.Sprite {
   const displayText = truncateCommitText(text);
   const dpr = 2;
   const fontSize = 10;
@@ -151,7 +175,12 @@ export function createCommitLabelSprite(text: string, accentColor: string): THRE
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
   ctx.shadowBlur = 4;
-  ctx.fillText(displayText, paddingX, logicalHeight / 2, logicalWidth - paddingX * 2);
+  ctx.fillText(
+    displayText,
+    paddingX,
+    logicalHeight / 2,
+    logicalWidth - paddingX * 2,
+  );
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -203,8 +232,12 @@ export function createEventLabelSprite(
   const actorWidth = Math.ceil(measureCtx.measureText(actorLogin).width);
   measureCtx.font = `italic 500 ${eventFontSize}px system-ui, -apple-system, sans-serif`;
   const eventWidth = Math.ceil(measureCtx.measureText(displayEvent).width);
-  const logicalWidth = Math.min(Math.max(actorWidth, eventWidth) + paddingX * 2, 280);
-  const logicalHeight = actorFontSize + lineGap + eventFontSize + paddingY * 2 + 2;
+  const logicalWidth = Math.min(
+    Math.max(actorWidth, eventWidth) + paddingX * 2,
+    280,
+  );
+  const logicalHeight =
+    actorFontSize + lineGap + eventFontSize + paddingY * 2 + 2;
 
   const canvas = document.createElement('canvas');
   canvas.width = logicalWidth * dpr;

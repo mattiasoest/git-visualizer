@@ -39,11 +39,16 @@ export class GalaxyVisualFactory {
   });
   private readonly pointSprite = softCircleSprite();
 
-  createGalaxy(eventCount: number, archiveId: string, labelText: string): GalaxyVisual {
+  createGalaxy(
+    eventCount: number,
+    archiveId: string,
+    labelText: string,
+  ): GalaxyVisual {
     const group = new THREE.Group();
     group.userData = { kind: 'galaxy', archiveId };
 
-    const scale = GALAXY_CORE_RADIUS * (0.85 + Math.log10(Math.max(eventCount, 10)) * 0.15);
+    const scale =
+      GALAXY_CORE_RADIUS * (0.85 + Math.log10(Math.max(eventCount, 10)) * 0.15);
 
     const core = new THREE.Mesh(this.coreGeo, this.coreMat.clone());
     core.scale.setScalar(scale * 0.35);
@@ -76,7 +81,8 @@ export class GalaxyVisualFactory {
       const angle = haloFraction * Math.PI * 6;
       const radius = scale * (0.5 + haloFraction * 0.9);
       const verticalOffset =
-        (Math.sin(haloFraction * Math.PI * 4) * 0.35 + Math.cos(haloIndex * 0.7) * 0.15) *
+        (Math.sin(haloFraction * Math.PI * 4) * 0.35 +
+          Math.cos(haloIndex * 0.7) * 0.15) *
         scale *
         0.3;
       haloPositions[haloIndex * 3] = Math.cos(angle) * radius;
@@ -87,7 +93,10 @@ export class GalaxyVisualFactory {
       haloColors[haloIndex * 3 + 2] = color.b;
     }
     const haloGeo = new THREE.BufferGeometry();
-    haloGeo.setAttribute('position', new THREE.BufferAttribute(haloPositions, 3));
+    haloGeo.setAttribute(
+      'position',
+      new THREE.BufferAttribute(haloPositions, 3),
+    );
     haloGeo.setAttribute('color', new THREE.BufferAttribute(haloColors, 3));
     const halo = new THREE.Points(
       haloGeo,
@@ -104,10 +113,7 @@ export class GalaxyVisualFactory {
     );
     group.add(halo);
 
-    const hitSphere = new THREE.Mesh(
-      this.coreGeo,
-      this.hitMat.clone(),
-    );
+    const hitSphere = new THREE.Mesh(this.coreGeo, this.hitMat.clone());
     hitSphere.scale.setScalar(scale * 1.4);
     hitSphere.userData = { kind: 'galaxy', archiveId };
     group.add(hitSphere);

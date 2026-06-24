@@ -26,7 +26,10 @@ export class BackgroundLayer {
     (this.nebula.material as THREE.Material).dispose();
   }
 
-  private createStarfield(count: number, pointSprite: THREE.Texture): THREE.Points {
+  private createStarfield(
+    count: number,
+    pointSprite: THREE.Texture,
+  ): THREE.Points {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
@@ -67,7 +70,10 @@ export class BackgroundLayer {
     return new THREE.Points(geometry, material);
   }
 
-  private createNebula(count: number, pointSprite: THREE.Texture): THREE.Points {
+  private createNebula(
+    count: number,
+    pointSprite: THREE.Texture,
+  ): THREE.Points {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
