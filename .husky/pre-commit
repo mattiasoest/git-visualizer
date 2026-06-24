@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+if git diff --cached --name-only | grep -q '^client/'; then
+  cd client && npm run typecheck
+fi
