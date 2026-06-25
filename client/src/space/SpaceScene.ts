@@ -49,7 +49,7 @@ export class SpaceScene {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private controls: OrbitControls;
-  private clock = new THREE.Clock();
+  private timer = new THREE.Timer();
   private isVisible = true;
   private autoRotateListeners = new Set<(enabled: boolean) => void>();
   private labelVisibilityListeners = new Set<(visible: boolean) => void>();
@@ -97,7 +97,6 @@ export class SpaceScene {
   private onVisibilityChange = (): void => {
     this.isVisible = !document.hidden;
     if (this.isVisible) {
-      this.clock.getDelta();
       this.renderer.setAnimationLoop(this.animate);
     } else {
       this.renderer.setAnimationLoop(null);
@@ -179,13 +178,13 @@ export class SpaceScene {
       this.activeClusterGroup,
       this.activeEventParticles,
       this.repoFactory,
-      this.clock,
+      this.timer,
     );
     this.detailNodes = new GraphNodeLayer(
       this.detailClusterGroup,
       this.detailEventParticles,
       this.repoFactory,
-      this.clock,
+      this.timer,
     );
 
     this.activeLinks = new LinkLayer(this.activeNodes);
@@ -214,6 +213,7 @@ export class SpaceScene {
     this.scene.add(this.detailClusterGroup);
     this.detailClusterGroup.visible = false;
 
+    this.timer.connect(document);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.renderer.setAnimationLoop(this.animate);
   }
@@ -584,12 +584,13 @@ export class SpaceScene {
     }
   }
 
-  private animate = (): void => {
+  private animate = (timestamp?: number): void => {
     if (!this.isVisible) return;
 
+    this.timer.update(timestamp);
     const now = performance.now();
-    const time = this.clock.getElapsedTime();
-    const delta = this.clock.getDelta();
+    const time = this.timer.getElapsed();
+    const delta = this.timer.getDelta();
 
     const cameraAnimating = this.updateCameraAnimation(delta);
     if (!cameraAnimating) {
@@ -637,6 +638,7 @@ export class SpaceScene {
   };
 
   dispose(): void {
+    this.timer.dispose();
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.renderer.setAnimationLoop(null);
     this.controls.dispose();

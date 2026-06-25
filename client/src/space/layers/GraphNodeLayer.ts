@@ -39,7 +39,7 @@ export class GraphNodeLayer {
     private rootGroup: THREE.Group,
     private eventParticles: EventParticleLayer,
     private repoFactory: RepoVisualFactory,
-    private clock: THREE.Clock,
+    private timer: THREE.Timer,
   ) {}
 
   setLinkVisibilityHandler(handler: () => void): void {
@@ -264,7 +264,7 @@ export class GraphNodeLayer {
   }
 
   update(now: number, attenuationScale: number): void {
-    const time = this.clock.getElapsedTime();
+    const time = this.timer.getElapsed();
     this.eventParticles.update(time, now, attenuationScale);
 
     for (const state of this.nodeStates.values()) {
@@ -559,7 +559,7 @@ export class GraphNodeLayer {
     this.eventParticles.sync(
       particles,
       parentPositions,
-      this.clock.getElapsedTime(),
+      this.timer.getElapsed(),
     );
   }
 
