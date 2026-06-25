@@ -344,10 +344,7 @@ export class EventParticleLayer {
         ? Math.min((now - state.spawnStartTime) / EVENT_SPAWN_MS, 1)
         : 1;
 
-      let scaleMul = 1;
-      if (this.mergeSuckT > 0) {
-        scaleMul *= Math.max(0.001, 1 - this.mergeSuckT);
-      }
+      let scaleMul: number;
       if (spawning) {
         scaleMul = easeOutBack(spawnT);
         if (spawnT >= 1) state.spawnStartTime = 0;
@@ -356,6 +353,9 @@ export class EventParticleLayer {
         const pulse = pulsing ? 1 + Math.sin(now * 0.035) * 0.2 : 1;
         const eventPulse = 1 + Math.sin(time * 2.4 + worldPos.z) * 0.06;
         scaleMul = pulse * eventPulse;
+      }
+      if (this.mergeSuckT > 0) {
+        scaleMul *= Math.max(0.001, 1 - this.mergeSuckT);
       }
 
       const upgraded = state.upgraded === true;

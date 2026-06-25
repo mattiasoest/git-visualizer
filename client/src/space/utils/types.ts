@@ -7,7 +7,7 @@ export interface EventFlightPayload {
   eventColor: string;
 }
 
-export interface QueuedFlight extends EventFlightPayload {}
+export type QueuedFlight = EventFlightPayload;
 
 export interface NodeState {
   node: GraphNode;
