@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { AppHeader } from './components/AppHeader/AppHeader';
 import { SpaceVisualization } from './components/SpaceVisualization/SpaceVisualization';
 import { useEventStream } from './hooks/useEventStream';
 import { useViewportHeight } from './hooks/useViewportHeight';
@@ -55,29 +56,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <div className="app-header__brand">
-          <h1>GitHub Cosmos</h1>
-          <p className="subtitle">
-            Live public activity across the open-source universe
-          </p>
-        </div>
-        <div className="filters" role="toolbar" aria-label="Event type filters">
-          {FILTERABLE_TYPES.map((type) => (
-            <button
-              key={type}
-              type="button"
-              className={`filter-chip ${activeTypes.has(type) ? 'active' : ''}`}
-              style={
-                { '--chip-color': eventColor(type) } as React.CSSProperties
-              }
-              onClick={() => toggleType(type)}
-            >
-              {eventTypeLabel(type)}
-            </button>
-          ))}
-        </div>
-      </header>
+      <AppHeader activeTypes={activeTypes} onToggleType={toggleType} />
 
       <main className="app-main">
         <SpaceVisualization events={events} activeTypes={activeTypes} />
