@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { EventView } from '../types/event';
 import { buildGraph, type GraphData } from '../space/utils/graphBuilder';
 import { MERGE_EVENT_THRESHOLD } from '../space/utils/constants';
@@ -34,25 +34,6 @@ export function useClusterArchives(allEvents: EventView[]) {
   const [isPreparingDetail, setIsPreparingDetail] = useState(false);
   const mergeCompletedIds = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (pendingMerge) return;
-
-    const archivedIds = new Set(
-      archives.flatMap((archive) => archive.events.map((event) => event.id)),
-    );
-    const active = allEvents.filter((event) => !archivedIds.has(event.id));
-    if (active.length < MERGE_EVENT_THRESHOLD) return;
-
-    const toArchive = active.slice(0, MERGE_EVENT_THRESHOLD);
-    const id = allocateGalaxyId(archives, null);
-    setPendingMerge({
-      id,
-      events: toArchive,
-      graphData: buildGraph(toArchive),
-      mergedAt: Date.now(),
-    });
-  }, [allEvents, archives, pendingMerge]);
-
   const completeMergeAnimation = useCallback(() => {
     setPendingMerge((pending) => {
       if (!pending) return null;
@@ -79,6 +60,20 @@ export function useClusterArchives(allEvents: EventView[]) {
     () => new Set(pendingMerge?.events.map((event) => event.id) ?? []),
     [pendingMerge],
   );
+
+  if (!pendingMerge) {
+    const active = allEvents.filter((event) => !archivedEventIds.has(event.id));
+    if (active.length >= MERGE_EVENT_THRESHOLD) {
+      const toArchive = active.slice(0, MERGE_EVENT_THRESHOLD);
+      const id = allocateGalaxyId(archives, null);
+      setPendingMerge({
+        id,
+        events: toArchive,
+        graphData: buildGraph(toArchive),
+        mergedAt: Date.now(),
+      });
+    }
+  }
 
   const activeEvents = useMemo(
     () =>

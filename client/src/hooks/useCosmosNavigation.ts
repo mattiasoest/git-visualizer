@@ -1,14 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 export type CosmosNavTarget = 'global' | 'active' | string;
 
-export function useCosmosNavigation(archiveCount: number) {
+export function useCosmosNavigation() {
   const [navTarget, setNavTarget] = useState<CosmosNavTarget>('global');
-  const prevArchiveCount = useRef(archiveCount);
-
-  useEffect(() => {
-    prevArchiveCount.current = archiveCount;
-  }, [archiveCount]);
 
   return { navTarget, setNavTarget };
 }

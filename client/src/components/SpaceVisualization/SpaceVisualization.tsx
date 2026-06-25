@@ -48,42 +48,34 @@ export function SpaceVisualization({
     resumeAutoRotate,
   } = useSpaceScene(selectGalaxy);
 
-  const { navTarget, setNavTarget } = useCosmosNavigation(archives.length);
+  const { navTarget, setNavTarget } = useCosmosNavigation();
   const archiveIds = useMemo(
     () => archives.map((archive) => archive.id),
     [archives],
   );
-  const prevArchiveCount = useRef(archives.length);
   const lastMergedGalaxyIdRef = useRef<string | null>(null);
   const navTargetAtMergeStartRef = useRef<CosmosNavTarget | null>(null);
   const prevPendingMergeRef = useRef(pendingMerge);
 
-  useEffect(() => {
-    if (pendingMerge && !prevPendingMergeRef.current) {
-      navTargetAtMergeStartRef.current = navTarget;
-      lastMergedGalaxyIdRef.current = pendingMerge.id;
-    }
-    prevPendingMergeRef.current = pendingMerge;
-  }, [pendingMerge, navTarget]);
+  if (pendingMerge && !prevPendingMergeRef.current) {
+    navTargetAtMergeStartRef.current = navTarget;
+    lastMergedGalaxyIdRef.current = pendingMerge.id;
+  }
+  prevPendingMergeRef.current = pendingMerge;
 
-  useEffect(() => {
-    if (viewMode !== 'overview' || isMergeAnimating) return;
-    if (archives.length <= prevArchiveCount.current) return;
-
+  const handleMergeComplete = useCallback(() => {
     const wasOnActiveCluster = navTargetAtMergeStartRef.current === 'active';
-    navTargetAtMergeStartRef.current = null;
+    const newGalaxyId = lastMergedGalaxyIdRef.current;
 
-    const newGalaxyId =
-      lastMergedGalaxyIdRef.current ??
-      archives[archives.length - 1]?.id ??
-      null;
+    completeMergeAnimation();
+
+    navTargetAtMergeStartRef.current = null;
     lastMergedGalaxyIdRef.current = null;
-    prevArchiveCount.current = archives.length;
 
     if (wasOnActiveCluster && newGalaxyId) {
       setNavTarget(newGalaxyId);
     }
-  }, [archives.length, viewMode, isMergeAnimating, setNavTarget, archives]);
+  }, [completeMergeAnimation, setNavTarget]);
 
   const navigateCamera = useCallback(
     (target: CosmosNavTarget) => {
@@ -135,7 +127,7 @@ export function SpaceVisualization({
         : null,
       mergeDisplayGraph: mergeDisplayGraph,
       archiveCountBeforeMerge: archives.length,
-      onMergeComplete: completeMergeAnimation,
+      onMergeComplete: handleMergeComplete,
       onDetailLayoutReady: completeDetailPrepare,
     }),
     [
@@ -145,7 +137,7 @@ export function SpaceVisualization({
       pendingMerge,
       mergeDisplayGraph,
       archives.length,
-      completeMergeAnimation,
+      handleMergeComplete,
       completeDetailPrepare,
     ],
   );
