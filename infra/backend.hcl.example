@@ -1,0 +1,5 @@
+bucket         = "your-terraform-state-bucket"
+key            = "git-visualizer/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "git-visualizer-terraform-locks"
+encrypt        = true

@@ -1,0 +1,8 @@
+aws_region    = "us-east-1"
+project_name  = "git-visualizer"
+instance_type = "t4g.micro"
+
+# github_token = "ghp_your_token_here"
+
+# Optional: restrict SSH to your IP, e.g. ["203.0.113.10/32"]
+# ssh_cidr_blocks = []

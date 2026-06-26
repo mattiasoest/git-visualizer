@@ -1,0 +1,9 @@
+{$API_HOSTNAME} {
+    reverse_proxy 127.0.0.1:8080 {
+        flush_interval -1
+    }
+
+    header {
+        -Server
+    }
+}
