@@ -4,4 +4,3 @@
 **/target
 **/node_modules
 frontend/dist
-backend/src/main/resources/static

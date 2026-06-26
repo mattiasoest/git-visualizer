@@ -7,10 +7,10 @@ RUN apt-get update \
 WORKDIR /app/backend
 
 COPY backend/pom.xml ./
-RUN mvn dependency:go-offline -B -Pskip-frontend
+RUN mvn dependency:go-offline -B
 
 COPY backend/src ./src
 
 EXPOSE 8080
 
-CMD ["mvn", "spring-boot:run", "-Pskip-frontend"]
+CMD ["mvn", "spring-boot:run"]

@@ -8,6 +8,7 @@ import {
 import type { ConnectionStatus, EventView } from '../types/event';
 import { FILTERABLE_TYPES } from '../types/event';
 import { MAX_STREAM_EVENTS } from '../space/utils/constants';
+import { apiUrl } from '../utils/apiBase';
 
 function emptyTypeCounts(): Record<string, number> {
   return Object.fromEntries(FILTERABLE_TYPES.map((type) => [type, 0]));
@@ -119,7 +120,7 @@ export function useEventStream() {
       status === 'connected' ? 'reconnecting' : 'connecting',
     );
 
-    const source = new EventSource('/api/stream/events');
+    const source = new EventSource(apiUrl('/api/stream/events'));
     eventSourceRef.current = source;
 
     source.addEventListener('github-event', (message) => {

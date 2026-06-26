@@ -6,7 +6,7 @@ Real-time visualization of GitHub public activity. A Spring Boot backend polls t
 
 ```
 frontend/   React + Vite UI
-backend/    Spring Boot API and static asset packaging
+backend/    Spring Boot API
 ```
 
 ## Architecture
@@ -15,13 +15,15 @@ backend/    Spring Boot API and static asset packaging
 - **Frontend**: React + Vite in `frontend/` renders a force-directed activity graph and live event feed
 - **Transport**: SSE at `/api/stream/events`
 
+The frontend and backend are deployed separately. In development, Vite proxies `/api` to the backend.
+
 ## Prerequisites
 
 For local development (two terminals):
 
 - Java 25+
 - Maven 3.9+
-- Node.js 24+ (for local frontend dev; Maven can install Node for production builds)
+- Node.js 24+
 
 For Docker development (single command, no local Java/Node required):
 
@@ -47,6 +49,17 @@ github:
     per-page: 100
     min-poll-interval-seconds: 60
 ```
+
+For separate frontend hosting, set CORS on the backend to your frontend origin:
+
+```yaml
+spring:
+  web:
+    cors:
+      allowed-origins: https://your-frontend.example.com
+```
+
+Or via environment variable: `SPRING_WEB_CORS_ALLOWED_ORIGINS=https://your-frontend.example.com`
 
 ## Development
 
@@ -83,16 +96,26 @@ cd frontend && npm install && npm run dev
 
 ## Production build
 
-Production is a single deployable artifact: Maven builds the React app into the JAR, so you run one process on port 8080 (not two containers).
+Build and deploy the backend and frontend independently.
 
-Builds the React app into `src/main/resources/static` and packages a single Spring Boot JAR:
+**Backend** — packages a Spring Boot JAR (API only):
 
 ```bash
 cd backend && ./mvnw package
 java -jar backend/target/gitvisualizer-0.0.1-SNAPSHOT.jar
 ```
 
-Open http://localhost:8080
+**Frontend** — static assets in `frontend/dist/`:
+
+```bash
+cd frontend && npm install && npm run build
+```
+
+Serve `frontend/dist/` from your static host (nginx, S3 + CDN, etc.). Set the backend URL at build time:
+
+```bash
+VITE_API_BASE_URL=https://api.example.com npm run build
+```
 
 ## API endpoints
 
