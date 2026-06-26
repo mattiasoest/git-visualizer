@@ -3,5 +3,5 @@
 .vscode
 **/target
 **/node_modules
-client/dist
-server/src/main/resources/static
+frontend/dist
+backend/src/main/resources/static

@@ -1,18 +1,18 @@
 # GitHub Events Visualizer
 
-Real-time visualization of GitHub public activity. A Spring Boot backend polls the [GitHub Events REST API](https://docs.github.com/en/rest/activity/events?apiVersion=2026-03-10) and streams new events to a React client over Server-Sent Events (SSE).
+Real-time visualization of GitHub public activity. A Spring Boot backend polls the [GitHub Events REST API](https://docs.github.com/en/rest/activity/events?apiVersion=2026-03-10) and streams new events to a React frontend over Server-Sent Events (SSE).
 
 ## Project layout
 
 ```
-client/   React + Vite UI
-server/   Spring Boot API and static asset packaging
+frontend/   React + Vite UI
+backend/    Spring Boot API and static asset packaging
 ```
 
 ## Architecture
 
-- **Backend**: Spring Boot 4 in `server/` polls `GET /events` with ETag support and respects `X-Poll-Interval`
-- **Frontend**: React + Vite in `client/` renders a force-directed activity graph and live event feed
+- **Backend**: Spring Boot 4 in `backend/` polls `GET /events` with ETag support and respects `X-Poll-Interval`
+- **Frontend**: React + Vite in `frontend/` renders a force-directed activity graph and live event feed
 - **Transport**: SSE at `/api/stream/events`
 
 ## Prerequisites
@@ -21,7 +21,7 @@ For local development (two terminals):
 
 - Java 25+
 - Maven 3.9+
-- Node.js 24+ (for local client dev; Maven can install Node for production builds)
+- Node.js 24+ (for local frontend dev; Maven can install Node for production builds)
 
 For Docker development (single command, no local Java/Node required):
 
@@ -37,7 +37,7 @@ export GITHUB_TOKEN=ghp_your_token_here
 
 Without a token, unauthenticated requests are limited to 60 requests/hour.
 
-Configuration lives in [`server/src/main/resources/application.yaml`](server/src/main/resources/application.yaml):
+Configuration lives in [`backend/src/main/resources/application.yaml`](backend/src/main/resources/application.yaml):
 
 ```yaml
 github:
@@ -75,10 +75,10 @@ Stop with `Ctrl+C`, or run `docker compose down` in another terminal.
 
 ```bash
 # Terminal 1 — backend (port 8080)
-cd server && ./mvnw spring-boot:run
+cd backend && ./mvnw spring-boot:run
 
-# Terminal 2 — client (port 5173, proxies /api to backend)
-cd client && npm install && npm run dev
+# Terminal 2 — frontend (port 5173, proxies /api to backend)
+cd frontend && npm install && npm run dev
 ```
 
 ## Production build
@@ -88,8 +88,8 @@ Production is a single deployable artifact: Maven builds the React app into the 
 Builds the React app into `src/main/resources/static` and packages a single Spring Boot JAR:
 
 ```bash
-cd server && ./mvnw package
-java -jar server/target/gitvisualizer-0.0.1-SNAPSHOT.jar
+cd backend && ./mvnw package
+java -jar backend/target/gitvisualizer-0.0.1-SNAPSHOT.jar
 ```
 
 Open http://localhost:8080

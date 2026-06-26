@@ -1,7 +1,7 @@
-server/target/
-client/node_modules/
-client/dist/
-server/src/main/resources/static/
+backend/target/
+frontend/node_modules/
+frontend/dist/
+backend/src/main/resources/static/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

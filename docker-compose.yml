@@ -1,31 +1,31 @@
 services:
-  server:
+  backend:
     build:
       context: .
-      dockerfile: server/Dockerfile.dev
+      dockerfile: backend/Dockerfile.dev
     ports:
       - "8080:8080"
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       SPRING_WEB_CORS_ALLOWED_ORIGINS: http://localhost:5173
     volumes:
-      - ./server:/app/server
+      - ./backend:/app/backend
       - maven-cache:/root/.m2
 
-  client:
+  frontend:
     build:
       context: .
-      dockerfile: client/Dockerfile.dev
+      dockerfile: frontend/Dockerfile.dev
     ports:
       - "5173:5173"
     environment:
-      VITE_API_PROXY_TARGET: http://server:8080
+      VITE_API_PROXY_TARGET: http://backend:8080
     volumes:
-      - ./client:/app/client
-      - client-node-modules:/app/client/node_modules
+      - ./frontend:/app/frontend
+      - frontend-node-modules:/app/frontend/node_modules
     depends_on:
-      - server
+      - backend
 
 volumes:
   maven-cache:
-  client-node-modules:
+  frontend-node-modules:

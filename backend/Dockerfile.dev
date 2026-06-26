@@ -4,12 +4,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends maven \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app/server
+WORKDIR /app/backend
 
-COPY server/pom.xml ./
+COPY backend/pom.xml ./
 RUN mvn dependency:go-offline -B -Pskip-frontend
 
-COPY server/src ./src
+COPY backend/src ./src
 
 EXPOSE 8080
 
