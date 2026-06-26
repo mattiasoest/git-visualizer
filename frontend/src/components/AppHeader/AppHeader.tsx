@@ -60,17 +60,16 @@ export function AppHeader({ activeTypes, onToggleType }: AppHeaderProps) {
     <header className="app-header">
       <div
         className="app-header__brand"
-        aria-label="GitHub Cosmos — live public event stream"
+        aria-label="GORBIT — GitHub public activity streaming in real time"
       >
         <div className="app-header__identity">
           <OrbitalMark className="app-header__mark" />
           <h1 className="app-header__title">
-            <span className="app-header__title-github">GitHub</span>{' '}
-            <span className="app-header__title-cosmos">Cosmos</span>
+            <span className="app-header__title-gorbit">GORBIT</span>
           </h1>
         </div>
         <div className="app-header__tagline">
-          <p>Public open-source activity, streaming in real time</p>
+          <p>GitHub public activity streaming in real time</p>
         </div>
       </div>
       <div className="filters" role="toolbar" aria-label="Event type filters">

@@ -75,7 +75,7 @@
   }
 }
 
-@keyframes app-header-cosmos-glow {
+@keyframes app-header-gorbit-glow {
   0% {
     background-position: 0% 50%;
   }
@@ -140,18 +140,7 @@
   gap: 0.35rem;
 }
 
-.app-header__title-github {
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    sans-serif;
-  font-weight: 500;
-  color: #c9d4e8;
-  text-shadow: 0 0 12px rgba(120, 140, 180, 0.12);
-}
-
-.app-header__title-cosmos {
+.app-header__title-gorbit {
   font-family: Orbitron, Inter, system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -166,8 +155,9 @@
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: app-header-cosmos-glow 6s linear infinite;
+  animation: app-header-gorbit-glow 6s linear infinite;
   filter: drop-shadow(0 0 8px rgba(100, 120, 180, 0.22));
 }
 
@@ -300,7 +290,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-header::before,
-  .app-header__title-cosmos,
+  .app-header__title-gorbit,
   .app-header__mark-ring--outer,
   .app-header__mark-orbit-dot {
     animation: none;
