@@ -16,11 +16,13 @@ import './SpaceVisualization.css';
 interface SpaceVisualizationProps {
   events: EventView[];
   activeTypes: Set<string>;
+  onEventsArchived?: (eventIds: string[]) => void;
 }
 
 export function SpaceVisualization({
   events,
   activeTypes,
+  onEventsArchived,
 }: SpaceVisualizationProps) {
   const {
     archives,
@@ -35,7 +37,7 @@ export function SpaceVisualization({
     completeMergeAnimation,
     isPreparingDetail,
     isMergeAnimating,
-  } = useClusterArchives(events);
+  } = useClusterArchives(events, onEventsArchived);
 
   const graphData = useStableGraphData(activeEvents);
   const {
@@ -112,7 +114,7 @@ export function SpaceVisualization({
     () =>
       archives.map((archive) => ({
         id: archive.id,
-        eventCount: archive.events.length,
+        eventCount: archive.eventCount,
       })),
     [archives],
   );
@@ -123,7 +125,7 @@ export function SpaceVisualization({
       archives: galaxyArchives,
       detailGraphData: selectedArchive?.graphData,
       pendingMerge: pendingMerge
-        ? { id: pendingMerge.id, eventCount: pendingMerge.events.length }
+        ? { id: pendingMerge.id, eventCount: pendingMerge.eventCount }
         : null,
       mergeDisplayGraph: mergeDisplayGraph,
       archiveCountBeforeMerge: archives.length,

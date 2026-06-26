@@ -12,22 +12,11 @@ function eventTypeLabel(type: string): string {
 
 export default function App() {
   useViewportHeight();
-  const { events, connectionStatus } = useEventStream();
+  const { events, totalReceived, typeCounts, connectionStatus, pruneEvents } =
+    useEventStream();
   const [activeTypes, setActiveTypes] = useState<Set<string>>(
     () => new Set(FILTERABLE_TYPES),
   );
-
-  const eventCountsByType = useMemo(() => {
-    const counts = Object.fromEntries(
-      FILTERABLE_TYPES.map((type) => [type, 0]),
-    );
-    for (const event of events) {
-      if (event.type in counts) {
-        counts[event.type] += 1;
-      }
-    }
-    return counts;
-  }, [events]);
 
   const toggleType = (type: string) => {
     setActiveTypes((current) => {
@@ -59,7 +48,11 @@ export default function App() {
       <AppHeader activeTypes={activeTypes} onToggleType={toggleType} />
 
       <main className="app-main">
-        <SpaceVisualization events={events} activeTypes={activeTypes} />
+        <SpaceVisualization
+          events={events}
+          activeTypes={activeTypes}
+          onEventsArchived={pruneEvents}
+        />
       </main>
 
       <footer className="status-bar">
@@ -67,7 +60,7 @@ export default function App() {
           <span className={`status-dot ${connectionStatus}`} />
           <span>{statusLabel}</span>
           <span className="status-bar__total">
-            <span className="status-bar__total-value">{events.length}</span>
+            <span className="status-bar__total-value">{totalReceived}</span>
             <span className="status-bar__total-label">Events</span>
           </span>
         </div>
@@ -83,9 +76,7 @@ export default function App() {
               <span className="status-bar__type-label">
                 {eventTypeLabel(type)}
               </span>
-              <span className="status-bar__type-value">
-                {eventCountsByType[type]}
-              </span>
+              <span className="status-bar__type-value">{typeCounts[type]}</span>
             </span>
           ))}
         </span>

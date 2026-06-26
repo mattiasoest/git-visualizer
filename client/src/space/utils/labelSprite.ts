@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MAX_LABEL_TEXTURE_CACHE } from '../utils/constants';
 
 const STYLES = {
   actor: {
@@ -19,6 +20,15 @@ const LABEL_WORLD_HEIGHT = {
 } as const;
 
 const textureCache = new Map<string, THREE.CanvasTexture>();
+
+function evictOldestTextureIfNeeded(): void {
+  while (textureCache.size >= MAX_LABEL_TEXTURE_CACHE) {
+    const oldestKey = textureCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    textureCache.get(oldestKey)?.dispose();
+    textureCache.delete(oldestKey);
+  }
+}
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -100,6 +110,7 @@ export function getLabelTexture(
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  evictOldestTextureIfNeeded();
   textureCache.set(key, texture);
   return texture;
 }

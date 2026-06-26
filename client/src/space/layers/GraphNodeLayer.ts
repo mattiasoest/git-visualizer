@@ -231,6 +231,9 @@ export class GraphNodeLayer {
     const topologyChanged = this.topologyChanged(activeIds, linkKeys);
 
     if (topologyChanged) {
+      for (const id of this.spawnedEventNodeIds) {
+        if (!activeIds.has(id)) this.spawnedEventNodeIds.delete(id);
+      }
       for (const [id, state] of this.nodeStates) {
         if (activeIds.has(id)) continue;
         this.removeNodeState(state);

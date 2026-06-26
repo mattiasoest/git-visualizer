@@ -6,6 +6,12 @@ import {
   useState,
 } from 'react';
 import type { ConnectionStatus, EventView } from '../types/event';
+import { FILTERABLE_TYPES } from '../types/event';
+import { MAX_STREAM_EVENTS } from '../space/utils/constants';
+
+function emptyTypeCounts(): Record<string, number> {
+  return Object.fromEntries(FILTERABLE_TYPES.map((type) => [type, 0]));
+}
 
 function mergeEvents(
   existing: EventView[],
@@ -27,21 +33,51 @@ function mergeEvents(
   );
 }
 
+function capEvents(events: EventView[]): EventView[] {
+  if (events.length <= MAX_STREAM_EVENTS) return events;
+  return events.slice(0, MAX_STREAM_EVENTS);
+}
+
 export function useEventStream() {
   const [events, setEvents] = useState<EventView[]>([]);
+  const [totalReceived, setTotalReceived] = useState(0);
+  const [typeCounts, setTypeCounts] =
+    useState<Record<string, number>>(emptyTypeCounts);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>('connecting');
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const pendingRef = useRef<EventView[]>([]);
   const flushScheduledRef = useRef(false);
+  const knownIdsRef = useRef<Set<string>>(new Set());
 
   const flushPending = useCallback(() => {
     if (pendingRef.current.length === 0) return;
     const batch = pendingRef.current;
     pendingRef.current = [];
+    let newCount = 0;
+    const typeIncrements = emptyTypeCounts();
+    for (const event of batch) {
+      if (!knownIdsRef.current.has(event.id)) {
+        knownIdsRef.current.add(event.id);
+        newCount += 1;
+        if (event.type in typeIncrements) {
+          typeIncrements[event.type] += 1;
+        }
+      }
+    }
+    if (newCount > 0) {
+      setTotalReceived((count) => count + newCount);
+      setTypeCounts((counts) => {
+        const next = { ...counts };
+        for (const type of FILTERABLE_TYPES) {
+          next[type] += typeIncrements[type];
+        }
+        return next;
+      });
+    }
     startTransition(() => {
-      setEvents((current) => mergeEvents(current, batch));
+      setEvents((current) => capEvents(mergeEvents(current, batch)));
     });
   }, []);
 
@@ -57,6 +93,22 @@ export function useEventStream() {
     },
     [flushPending],
   );
+
+  const pruneEvents = useCallback((eventIds: Iterable<string>) => {
+    const removeIds = new Set(eventIds);
+    if (removeIds.size === 0) return;
+
+    for (const id of removeIds) {
+      knownIdsRef.current.delete(id);
+    }
+
+    startTransition(() => {
+      setEvents((current) => {
+        const next = current.filter((event) => !removeIds.has(event.id));
+        return next.length === current.length ? current : next;
+      });
+    });
+  }, []);
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -101,5 +153,5 @@ export function useEventStream() {
     };
   }, [connect]);
 
-  return { events, connectionStatus };
+  return { events, totalReceived, typeCounts, connectionStatus, pruneEvents };
 }

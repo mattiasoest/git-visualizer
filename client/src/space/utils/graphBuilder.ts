@@ -183,7 +183,7 @@ export function graphDataFingerprint(data: GraphData): string {
   const nodePart = data.nodes
     .map((node) =>
       node.kind === 'event'
-        ? `${node.id}:${node.actorLogin}:${node.label}`
+        ? `${node.id}:${node.eventType}:${node.createdAt ?? ''}`
         : `${node.id}:${node.eventCount}`,
     )
     .sort()
