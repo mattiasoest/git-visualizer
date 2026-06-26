@@ -119,11 +119,7 @@ VITE_API_BASE_URL=https://api.example.com npm run build
 
 ## API endpoints
 
-| Endpoint | Description |
-|---|---|
+| Endpoint                 | Description                 |
+| ------------------------ | --------------------------- |
 | `GET /api/stream/events` | SSE stream of GitHub events |
-| `GET /actuator/health` | Health check |
-
-## Notes
-
-GitHub's Events API is optimized for polling, not sub-second delivery. Event latency can range from 30 seconds to several hours depending on GitHub load. The UI updates instantly when the backend receives new events.
+| `GET /actuator/health`   | Health check                |
