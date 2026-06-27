@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: npm run release -- <patch|minor|major|x.y.z>" >&2
+  echo "Usage: npm run release <patch|minor|major|x.y.z>" >&2
   exit 1
 fi
 

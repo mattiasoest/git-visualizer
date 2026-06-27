@@ -7,7 +7,10 @@ Real-time visualization of GitHub public activity. A Spring Boot backend polls t
 ```
 frontend/   React + Vite UI
 backend/    Spring Boot API
+scripts/    release and version sync helpers
 ```
+
+The repo root is an npm workspace (`package.json` + `package-lock.json`). Install Node dependencies from the root, not only inside `frontend/`.
 
 ## Architecture
 
@@ -87,18 +90,60 @@ Stop with `Ctrl+C`, or run `docker compose down` in another terminal.
 ### Local (two terminals)
 
 ```bash
+# Once, from repo root
+npm install
+
 # Terminal 1 — backend (port 8080)
 cd backend && ./mvnw spring-boot:run
 
 # Terminal 2 — frontend (port 5173, proxies /api to backend)
-cd frontend && npm install && npm run dev
+npm run dev --workspace=frontend
 ```
+
+For a production API URL during local builds, set `VITE_API_BASE_URL` in [`frontend/.env`](frontend/.env).
+
+## Release
+
+Bump the version across root, frontend, and backend, create a release commit, and tag it (for example `v0.2.0`):
+
+```bash
+npm run release minor   # patch | major | x.y.z
+git push origin HEAD --follow-tags
+```
+
+Pushing a `v*` tag triggers GitHub Actions:
+
+| Workflow | What it does |
+| --- | --- |
+| [`.github/workflows/deploy-frontend.yml`](.github/workflows/deploy-frontend.yml) | Build frontend → sync to S3 → invalidate CloudFront |
+| [`.github/workflows/publish-backend.yml`](.github/workflows/publish-backend.yml) | Build backend Docker image → push to GHCR |
+
+### GitHub Actions configuration
+
+**Repository variables**
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_API_BASE_URL` | Backend URL baked into the frontend build |
+| `S3_BUCKET` | Frontend static hosting bucket |
+| `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution to invalidate |
+| `AWS_REGION` | AWS region for deploy |
+
+**Repository secret**
+
+| Secret | Purpose |
+| --- | --- |
+| `AWS_ROLE_ARN` | IAM role for GitHub OIDC (S3 + CloudFront) |
+
+The backend publish workflow uses the built-in `GITHUB_TOKEN` to push to `ghcr.io/<owner>/git-visualizer-backend` with the git tag and `latest`.
+
+The frontend deploy workflow uses the `production` GitHub environment.
 
 ## Production build
 
-Build and deploy the backend and frontend independently.
+Build and deploy the backend and frontend independently, or let the release workflows above handle tagged deploys.
 
-**Backend** — publish image to GHCR (from your machine or CI):
+**Backend** — publish image to GHCR manually:
 
 ```bash
 cd backend
@@ -135,14 +180,11 @@ java -jar target/gitvisualizer-0.0.1-SNAPSHOT.jar
 **Frontend** — static assets in `frontend/dist/`:
 
 ```bash
-cd frontend && npm install && npm run build
+npm ci
+VITE_API_BASE_URL=https://api.example.com npm run build --workspace=frontend
 ```
 
-Serve `frontend/dist/` from your static host (nginx, S3 + CDN, etc.). Set the backend URL at build time:
-
-```bash
-VITE_API_BASE_URL=https://api.example.com npm run build
-```
+For local development builds, `frontend/.env` can set `VITE_API_BASE_URL` instead.
 
 ## API endpoints
 
