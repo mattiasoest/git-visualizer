@@ -8,7 +8,7 @@
   "scripts": {
     "prepare": "husky .husky",
     "version": "node scripts/sync-version.mjs",
-    "postversion": "git add frontend/package.json backend/pom.xml"
+    "release": "bash scripts/release.sh"
   },
   "devDependencies": {
     "husky": "^9.1.7"
