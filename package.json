@@ -1,0 +1,19 @@
+{
+  "name": "git-visualizer",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "prepare": "husky .husky",
+    "version": "node scripts/sync-version.mjs",
+    "postversion": "git add frontend/package.json backend/pom.xml"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
