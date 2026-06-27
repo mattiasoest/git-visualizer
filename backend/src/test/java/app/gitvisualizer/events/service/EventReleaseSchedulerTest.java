@@ -126,6 +126,22 @@ class EventReleaseSchedulerTest {
 	}
 
 	@Test
+	void replayToEmitterCancelStopsPendingDripTasks() {
+		SseEmitter emitter = mock(SseEmitter.class);
+		List<EventView> events = List.of(
+				view("1", "2026-06-13T12:00:01Z"),
+				view("2", "2026-06-13T12:00:02Z"),
+				view("3", "2026-06-13T12:00:03Z"));
+
+		Runnable cancelReplay = scheduler.replayToEmitter(emitter, events, 10);
+		cancelReplay.run();
+		taskScheduler.runAllInOrder();
+
+		verify(broadcaster, never()).sendToEmitter(any(), any());
+		verify(broadcaster, never()).broadcast(any());
+	}
+
+	@Test
 	void remainingWindowSecondsUsesActiveBatchDeadline() {
 		scheduler.enqueueBatch(List.of(githubEvent("1", "2026-06-13T12:00:01Z")), 60);
 

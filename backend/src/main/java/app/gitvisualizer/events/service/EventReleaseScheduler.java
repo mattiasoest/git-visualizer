@@ -75,20 +75,27 @@ public class EventReleaseScheduler {
 		scheduleLiveDrip(sorted, windowSeconds, generation);
 	}
 
-	public void replayToEmitter(SseEmitter emitter, List<EventView> events, int windowSeconds) {
+	public Runnable replayToEmitter(SseEmitter emitter, List<EventView> events, int windowSeconds) {
 		if (events.isEmpty()) {
-			return;
+			return () -> { };
 		}
 
 		if (!properties.gradualReleaseEnabled()) {
 			for (EventView event : events) {
 				broadcaster.sendToEmitter(emitter, event);
 			}
-			return;
+			return () -> { };
 		}
 
 		List<EventView> sorted = sortViewsOldestFirst(events);
-		scheduleDrip(sorted, windowSeconds, event -> broadcaster.sendToEmitter(emitter, event));
+		List<ScheduledFuture<?>> replayTasks = new CopyOnWriteArrayList<>();
+		scheduleDrip(sorted, windowSeconds, event -> broadcaster.sendToEmitter(emitter, event), replayTasks);
+		return () -> {
+			for (ScheduledFuture<?> future : replayTasks) {
+				future.cancel(false);
+			}
+			replayTasks.clear();
+		};
 	}
 
 	public List<EventView> lastPollBatchViews() {
@@ -127,14 +134,21 @@ public class EventReleaseScheduler {
 		}
 	}
 
-	private void scheduleDrip(List<EventView> events, int windowSeconds, Consumer<EventView> sender) {
+	private void scheduleDrip(
+			List<EventView> events,
+			int windowSeconds,
+			Consumer<EventView> sender,
+			List<ScheduledFuture<?>> futures) {
 		int count = events.size();
 		long windowMs = windowSeconds * 1000L;
 
 		for (int eventIndex = 0; eventIndex < count; eventIndex++) {
 			long delayMs = (long) eventIndex * windowMs / count;
 			EventView event = events.get(eventIndex);
-			taskScheduler.schedule(() -> sender.accept(event), Instant.now().plusMillis(delayMs));
+			ScheduledFuture<?> future = taskScheduler.schedule(
+					() -> sender.accept(event),
+					Instant.now().plusMillis(delayMs));
+			futures.add(future);
 		}
 	}
 

@@ -2,6 +2,8 @@ package app.gitvisualizer.events.service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.slf4j.Logger;
@@ -19,16 +21,26 @@ public class EventBroadcaster {
 	private static final long SSE_TIMEOUT = 0L;
 
 	private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+	private final Map<SseEmitter, List<Runnable>> disconnectHandlers = new ConcurrentHashMap<>();
 
 	public SseEmitter subscribe() {
 		SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
 		emitters.add(emitter);
+		disconnectHandlers.put(emitter, new CopyOnWriteArrayList<>());
 
-		emitter.onCompletion(() -> emitters.remove(emitter));
-		emitter.onTimeout(() -> emitters.remove(emitter));
-		emitter.onError(ex -> emitters.remove(emitter));
+		Runnable cleanup = () -> removeEmitter(emitter);
+		emitter.onCompletion(cleanup);
+		emitter.onTimeout(cleanup);
+		emitter.onError(ex -> removeEmitter(emitter));
 
 		return emitter;
+	}
+
+	public void onDisconnect(SseEmitter emitter, Runnable handler) {
+		List<Runnable> handlers = disconnectHandlers.get(emitter);
+		if (handlers != null) {
+			handlers.add(handler);
+		}
 	}
 
 	public void broadcast(EventView event) {
@@ -43,10 +55,9 @@ public class EventBroadcaster {
 					.name("github-event")
 					.data(event));
 		}
-		catch (IOException ex) {
+		catch (IOException | IllegalStateException ex) {
 			log.debug("Removing dead SSE emitter", ex);
-			emitters.remove(emitter);
-			emitter.completeWithError(ex);
+			removeEmitter(emitter);
 		}
 	}
 
@@ -62,10 +73,18 @@ public class EventBroadcaster {
 			try {
 				emitter.send(SseEmitter.event().comment("ping"));
 			}
-			catch (IOException ex) {
-				emitters.remove(emitter);
-				emitter.completeWithError(ex);
+			catch (IOException | IllegalStateException ex) {
+				log.debug("Removing dead SSE emitter during heartbeat", ex);
+				removeEmitter(emitter);
 			}
+		}
+	}
+
+	private void removeEmitter(SseEmitter emitter) {
+		emitters.remove(emitter);
+		List<Runnable> handlers = disconnectHandlers.remove(emitter);
+		if (handlers != null) {
+			handlers.forEach(Runnable::run);
 		}
 	}
 }

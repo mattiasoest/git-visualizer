@@ -26,7 +26,8 @@ public class EventStreamService {
 
 		List<EventView> replayEvents = releaseScheduler.lastPollBatchViews();
 		int windowSeconds = releaseScheduler.remainingWindowSeconds();
-		releaseScheduler.replayToEmitter(emitter, replayEvents, windowSeconds);
+		Runnable cancelReplay = releaseScheduler.replayToEmitter(emitter, replayEvents, windowSeconds);
+		broadcaster.onDisconnect(emitter, cancelReplay);
 
 		return emitter;
 	}
