@@ -1,9 +1,12 @@
 FROM node:24-alpine
 
-WORKDIR /app/frontend
+WORKDIR /app
 
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
+RUN npm ci --workspace=frontend --ignore-scripts
+
+WORKDIR /app/frontend
 
 COPY frontend/ .
 
