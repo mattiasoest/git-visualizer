@@ -16,7 +16,7 @@ The repo root is an npm workspace (`package.json` + `package-lock.json`). Instal
 
 - **Backend**: Spring Boot 4 in `backend/` polls `GET /events` with ETag support and respects `X-Poll-Interval`
 - **Frontend**: React + Vite in `frontend/` renders a force-directed activity graph and live event feed
-- **Transport**: SSE at `/api/stream/events`
+- **Transport**: SSE at `/stream/events`
 
 The frontend and backend are deployed separately. In development, Vite proxies `/api` to the backend.
 
@@ -190,5 +190,5 @@ For local development builds, `frontend/.env` can set `VITE_API_BASE_URL` instea
 
 | Endpoint                 | Description                 |
 | ------------------------ | --------------------------- |
-| `GET /api/stream/events` | SSE stream of GitHub events |
+| `GET /stream/events` | SSE stream of GitHub events |
 | `GET /actuator/health`   | Health check                |

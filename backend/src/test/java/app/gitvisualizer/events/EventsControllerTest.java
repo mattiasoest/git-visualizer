@@ -29,7 +29,7 @@ class EventsControllerTest {
 		SseEmitter emitter = new SseEmitter();
 		when(streamService.subscribeToStream()).thenReturn(emitter);
 
-		mockMvc.perform(get("/api/stream/events"))
+		mockMvc.perform(get("/stream/events"))
 				.andExpect(status().isOk())
 				.andExpect(request().asyncStarted());
 

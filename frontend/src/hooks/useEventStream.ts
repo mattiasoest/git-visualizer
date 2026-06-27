@@ -120,7 +120,7 @@ export function useEventStream() {
       status === 'connected' ? 'reconnecting' : 'connecting',
     );
 
-    const source = new EventSource(apiUrl('/api/stream/events'));
+    const source = new EventSource(apiUrl('/stream/events'));
     eventSourceRef.current = source;
 
     source.addEventListener('github-event', (message) => {
