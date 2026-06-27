@@ -98,11 +98,38 @@ cd frontend && npm install && npm run dev
 
 Build and deploy the backend and frontend independently.
 
-**Backend** — packages a Spring Boot JAR (API only):
+**Backend** — publish image to GHCR (from your machine or CI):
+
+```bash
+cd backend
+export GITHUB_TOKEN=ghp_your_token_here   # needs write:packages
+./scripts/publish-image.sh                # tags and pushes :latest
+./scripts/publish-image.sh v1.0.0         # also updates :latest
+```
+
+**Backend** — run on a server (pulls the published image):
+
+```bash
+cd backend
+cp .env.example .env                      # set GHCR_IMAGE, CORS origin, etc.
+# If the GHCR package is private:
+# echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+./scripts/deploy.sh
+```
+
+Or manually:
+
+```bash
+cd backend
+docker compose pull
+docker compose up -d
+```
+
+Or run the JAR directly:
 
 ```bash
 cd backend && ./mvnw package
-java -jar backend/target/gitvisualizer-0.0.1-SNAPSHOT.jar
+java -jar target/gitvisualizer-0.0.1-SNAPSHOT.jar
 ```
 
 **Frontend** — static assets in `frontend/dist/`:
