@@ -24,22 +24,16 @@ GITHUB_ACTOR="${GITHUB_ACTOR:-${GITHUB_OWNER}}"
 echo "Logging in to ghcr.io as ${GITHUB_ACTOR}..."
 echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
-docker buildx inspect multiarch >/dev/null 2>&1 \
-  || docker buildx create --name multiarch --use
-docker buildx use multiarch
+echo "Building ${GHCR_IMAGE}:${IMAGE_TAG} for linux/arm64..."
+docker build --platform linux/arm64 -t "${GHCR_IMAGE}:${IMAGE_TAG}" "${BACKEND_DIR}"
 
-echo "Building ${GHCR_IMAGE}:${IMAGE_TAG} for linux/amd64,linux/arm64..."
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  -t "${GHCR_IMAGE}:${IMAGE_TAG}" \
-  --push \
-  "${BACKEND_DIR}"
+echo "Pushing ${GHCR_IMAGE}:${IMAGE_TAG}..."
+docker push "${GHCR_IMAGE}:${IMAGE_TAG}"
 
 if [[ "${IMAGE_TAG}" != "latest" ]]; then
-  docker buildx imagetools create \
-    -t "${GHCR_IMAGE}:latest" \
-    "${GHCR_IMAGE}:${IMAGE_TAG}"
-  echo "Updated ${GHCR_IMAGE}:latest"
+  docker tag "${GHCR_IMAGE}:${IMAGE_TAG}" "${GHCR_IMAGE}:latest"
+  echo "Pushing ${GHCR_IMAGE}:latest..."
+  docker push "${GHCR_IMAGE}:latest"
 fi
 
 echo "Published ${GHCR_IMAGE}:${IMAGE_TAG}"
