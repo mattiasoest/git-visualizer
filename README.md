@@ -111,12 +111,12 @@ npm run release minor   # patch | major | x.y.z
 git push origin HEAD --follow-tags
 ```
 
-Pushing a `v*` tag triggers GitHub Actions:
+Pushing a `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which runs two jobs in parallel:
 
-| Workflow | What it does |
+| Job | What it does |
 | --- | --- |
-| [`.github/workflows/deploy-frontend.yml`](.github/workflows/deploy-frontend.yml) | Build frontend → sync to S3 → invalidate CloudFront |
-| [`.github/workflows/publish-backend.yml`](.github/workflows/publish-backend.yml) | Build backend Docker image → push to GHCR |
+| Deploy frontend | Build frontend → sync to S3 → invalidate CloudFront |
+| Publish backend | Build backend Docker image → push to GHCR |
 
 ### GitHub Actions configuration
 
@@ -135,9 +135,9 @@ Pushing a `v*` tag triggers GitHub Actions:
 | --- | --- |
 | `AWS_ROLE_ARN` | IAM role for GitHub OIDC (S3 + CloudFront) |
 
-The backend publish workflow uses the built-in `GITHUB_TOKEN` to push to `ghcr.io/<owner>/git-visualizer-backend` with the git tag and `latest`.
+The backend publish job uses the built-in `GITHUB_TOKEN` to push to `ghcr.io/<owner>/git-visualizer-backend` with the git tag and `latest`.
 
-The frontend deploy workflow uses the `production` GitHub environment.
+The frontend deploy job uses the `production` GitHub environment.
 
 ## Production build
 
