@@ -2,6 +2,8 @@
 
 Real-time visualization of GitHub public activity. A Spring Boot backend polls the [GitHub Events REST API](https://docs.github.com/en/rest/activity/events?apiVersion=2026-03-10) and streams new events to a React frontend over Server-Sent Events (SSE).
 
+**Production:** [gorbit.click](https://gorbit.click/) (frontend) · [api.gorbit.click](https://api.gorbit.click) (backend)
+
 ## Project layout
 
 ```
@@ -59,10 +61,10 @@ For separate frontend hosting, set CORS on the backend to your frontend origin:
 spring:
   web:
     cors:
-      allowed-origins: https://your-frontend.example.com
+      allowed-origins: https://gorbit.click
 ```
 
-Or via environment variable: `SPRING_WEB_CORS_ALLOWED_ORIGINS=https://your-frontend.example.com`
+Or via environment variable: `SPRING_WEB_CORS_ALLOWED_ORIGINS=https://gorbit.click`
 
 ## Development
 
@@ -181,7 +183,7 @@ java -jar target/gitvisualizer-0.0.1-SNAPSHOT.jar
 
 ```bash
 npm ci
-VITE_API_BASE_URL=https://api.example.com npm run build --workspace=frontend
+VITE_API_BASE_URL=https://api.gorbit.click npm run build --workspace=frontend
 ```
 
 For local development builds, `frontend/.env` can set `VITE_API_BASE_URL` instead.
