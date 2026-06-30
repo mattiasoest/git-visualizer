@@ -107,7 +107,7 @@ export function SpaceVisualization({
     if (!sceneReady || viewMode !== 'overview' || isMergeAnimating) return;
     if (sceneInitialized.current) return;
     sceneInitialized.current = true;
-    sceneRef.current?.navigateTo('global', archiveIds);
+    sceneRef.current?.navigateTo('global', archiveIds, { smooth: false });
   }, [sceneReady, viewMode, sceneRef, archiveIds, isMergeAnimating]);
 
   const galaxyArchives = useMemo(

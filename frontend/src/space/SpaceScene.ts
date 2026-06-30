@@ -41,7 +41,24 @@ export interface CosmosLayoutInput {
 
 const OVERVIEW_CAMERA_DISTANCE_BASE = 95;
 const DETAIL_CAMERA_DISTANCE = 85;
-const CAMERA_LERP_SPEED = 2.5;
+const CAMERA_ANIM_DURATION_SEC = 0.4;
+const CAMERA_LERP_SPEED = 1 / CAMERA_ANIM_DURATION_SEC;
+const TWO_PI = Math.PI * 2;
+
+function lerpAngle(from: number, to: number, t: number): number {
+  const delta = ((((to - from) % TWO_PI) + TWO_PI * 1.5) % TWO_PI) - Math.PI;
+  return from + delta * t;
+}
+
+/** OrbitControls internal fields we sync after programmatic camera moves. */
+type OrbitControlsInternals = OrbitControls & {
+  _spherical: THREE.Spherical;
+  _sphericalDelta: THREE.Spherical;
+  _panOffset: THREE.Vector3;
+  _quat: THREE.Quaternion;
+  _quatInverse: THREE.Quaternion;
+  _scale: number;
+};
 
 export class SpaceScene {
   private container: HTMLElement;
@@ -78,13 +95,14 @@ export class SpaceScene {
   private cameraAnim: {
     fromTarget: THREE.Vector3;
     toTarget: THREE.Vector3;
-    fromPosition: THREE.Vector3;
-    toPosition: THREE.Vector3;
+    fromSpherical: THREE.Spherical;
+    toSpherical: THREE.Spherical;
     progress: number;
     dampingWasEnabled: boolean;
   } | null = null;
 
   private readonly scratchTarget = new THREE.Vector3();
+  private readonly scratchOffset = new THREE.Vector3();
   private readonly mergeWorldPosition = new THREE.Vector3();
 
   private mergeInProgress = false;
@@ -367,7 +385,7 @@ export class SpaceScene {
     options: { smooth?: boolean } = {},
   ): void {
     if (this.mergeInProgress) return;
-    const smooth = options.smooth ?? false;
+    const smooth = options.smooth ?? true;
     const immediate = !smooth;
     const archiveCount = archiveIds.length;
     if (target === 'global') {
@@ -405,20 +423,33 @@ export class SpaceScene {
     this.setAutoRotate(false);
 
     if (!animate) {
-      this.controls.enableDamping = false;
-      this.controls.target.copy(target);
-      this.camera.position.copy(desiredPosition);
+      this.applyCameraPose(target, desiredPosition, true);
       this.cameraAnim = null;
-      this.controls.update();
-      this.controls.enableDamping = true;
       return;
     }
+
+    this.clearOrbitControlsMomentum();
+    const controls = this.controls as OrbitControlsInternals;
+
+    const fromSpherical = new THREE.Spherical();
+    this.scratchOffset
+      .copy(this.camera.position)
+      .sub(this.controls.target)
+      .applyQuaternion(controls._quat);
+    fromSpherical.setFromVector3(this.scratchOffset);
+
+    const toSpherical = new THREE.Spherical();
+    this.scratchOffset
+      .copy(desiredPosition)
+      .sub(target)
+      .applyQuaternion(controls._quat);
+    toSpherical.setFromVector3(this.scratchOffset);
 
     this.cameraAnim = {
       fromTarget: this.controls.target.clone(),
       toTarget: target.clone(),
-      fromPosition: this.camera.position.clone(),
-      toPosition: desiredPosition,
+      fromSpherical,
+      toSpherical,
       progress: 0,
       dampingWasEnabled: this.controls.enableDamping,
     };
@@ -488,30 +519,85 @@ export class SpaceScene {
   private updateCameraAnimation(delta: number): boolean {
     if (!this.cameraAnim) return false;
 
-    this.cameraAnim.progress = Math.min(
-      this.cameraAnim.progress + delta * CAMERA_LERP_SPEED,
-      1,
+    const anim = this.cameraAnim;
+    anim.progress = Math.min(anim.progress + delta * CAMERA_LERP_SPEED, 1);
+    const cameraEaseT = 1 - (1 - anim.progress) ** 3;
+    const controls = this.controls as OrbitControlsInternals;
+
+    const radius = THREE.MathUtils.lerp(
+      anim.fromSpherical.radius,
+      anim.toSpherical.radius,
+      cameraEaseT,
     );
-    const cameraEaseT = 1 - (1 - this.cameraAnim.progress) ** 3;
+    const phi = THREE.MathUtils.lerp(
+      anim.fromSpherical.phi,
+      anim.toSpherical.phi,
+      cameraEaseT,
+    );
+    const theta = lerpAngle(
+      anim.fromSpherical.theta,
+      anim.toSpherical.theta,
+      cameraEaseT,
+    );
 
     this.controls.target.lerpVectors(
-      this.cameraAnim.fromTarget,
-      this.cameraAnim.toTarget,
+      anim.fromTarget,
+      anim.toTarget,
       cameraEaseT,
     );
-    this.camera.position.lerpVectors(
-      this.cameraAnim.fromPosition,
-      this.cameraAnim.toPosition,
-      cameraEaseT,
-    );
+    controls._spherical.set(radius, phi, theta);
+    this.scratchOffset
+      .setFromSpherical(controls._spherical)
+      .applyQuaternion(controls._quatInverse);
+    this.camera.position.copy(this.controls.target).add(this.scratchOffset);
+    this.camera.lookAt(this.controls.target);
+    this.clearOrbitControlsMomentum();
 
-    if (this.cameraAnim.progress >= 1) {
-      this.controls.enableDamping = this.cameraAnim.dampingWasEnabled;
-      this.controls.update();
+    if (anim.progress >= 1) {
+      this.controls.target.copy(anim.toTarget);
+      controls._spherical.copy(anim.toSpherical);
+      this.scratchOffset
+        .setFromSpherical(anim.toSpherical)
+        .applyQuaternion(controls._quatInverse);
+      this.camera.position.copy(this.controls.target).add(this.scratchOffset);
+      this.camera.lookAt(anim.toTarget);
+      this.clearOrbitControlsMomentum();
+      this.controls.enableDamping = anim.dampingWasEnabled;
       this.cameraAnim = null;
     }
 
     return true;
+  }
+
+  private clearOrbitControlsMomentum(): void {
+    const controls = this.controls as OrbitControlsInternals;
+    controls._sphericalDelta.set(0, 0, 0);
+    controls._panOffset.set(0, 0, 0);
+    controls._scale = 1;
+  }
+
+  /** Mirror the current camera pose into OrbitControls without moving the camera. */
+  private syncOrbitControlsFromCamera(): void {
+    const controls = this.controls as OrbitControlsInternals;
+    this.scratchOffset
+      .copy(this.camera.position)
+      .sub(this.controls.target)
+      .applyQuaternion(controls._quat);
+    controls._spherical.setFromVector3(this.scratchOffset);
+    this.clearOrbitControlsMomentum();
+  }
+
+  /** Set camera pose and sync OrbitControls without applying stale momentum. */
+  private applyCameraPose(
+    target: THREE.Vector3,
+    position: THREE.Vector3,
+    restoreDamping: boolean,
+  ): void {
+    this.controls.target.copy(target);
+    this.camera.position.copy(position);
+    this.camera.lookAt(target);
+    this.syncOrbitControlsFromCamera();
+    this.controls.enableDamping = restoreDamping;
   }
 
   private finishMergeAnimation(): void {
