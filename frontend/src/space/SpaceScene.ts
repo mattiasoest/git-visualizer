@@ -115,6 +115,7 @@ export class SpaceScene {
   private onVisibilityChange = (): void => {
     this.isVisible = !document.hidden;
     if (this.isVisible) {
+      this.timer.connect(document);
       this.renderer.setAnimationLoop(this.animate);
     } else {
       this.renderer.setAnimationLoop(null);
@@ -322,6 +323,68 @@ export class SpaceScene {
     this.activeClusterGroup.rotation.set(0, 0, 0);
     this.blackholeMerge.start(this.mergeWorldPosition, performance.now());
     this.setAutoRotate(false);
+  }
+
+  /** Finish an in-flight merge immediately (e.g. after returning from a background tab). */
+  skipMergeAnimation(): void {
+    if (!this.mergeInProgress) return;
+
+    const archiveIndex = this.mergeArchiveCountBefore;
+    const archiveSlot = archiveWorldOffset(archiveIndex);
+
+    if (this.mergeSpawnGalaxy) {
+      this.galaxies.spawnGalaxyAt(this.mergeSpawnGalaxy, archiveSlot, 1);
+    }
+    this.blackholeMerge.cancel();
+    this.activeNodes.clearMergeSuck();
+    this.activeEventParticles.clearMergeSuck();
+
+    const callback = this.mergeCallback;
+    const spawnedArchive = this.mergeSpawnGalaxy;
+
+    this.mergeInProgress = false;
+    this.mergeCallback = null;
+    this.mergeSpawnGalaxy = null;
+    this.mergeFrame = null;
+
+    if (spawnedArchive) {
+      this.galaxies.finalizePostMergeArchive(archiveIndex, spawnedArchive.id);
+    }
+    this.updateActiveClusterPosition(archiveIndex + 1);
+    this.activeClusterGroup.visible = true;
+    this.activeClusterGroup.scale.setScalar(1);
+    this.activeClusterGroup.rotation.set(0, 0, 0);
+    this.postMergeFadeStart = 0;
+
+    callback?.();
+  }
+
+  /** Commit a merge without playing the blackhole animation. */
+  instantCompleteMerge(
+    archive: GalaxyArchiveRef,
+    archiveIndex: number,
+    onComplete: () => void,
+  ): void {
+    if (this.mergeInProgress) {
+      this.skipMergeAnimation();
+      return;
+    }
+
+    const archiveSlot = archiveWorldOffset(archiveIndex);
+
+    this.flights.clear();
+    this.galaxies.spawnGalaxyAt(archive, archiveSlot, 1);
+    this.galaxies.finalizePostMergeArchive(archiveIndex, archive.id);
+    this.updateActiveClusterPosition(archiveIndex + 1);
+    this.activeClusterGroup.visible = true;
+    this.activeClusterGroup.scale.setScalar(1);
+    this.activeClusterGroup.rotation.set(0, 0, 0);
+    this.postMergeFadeStart = 0;
+    onComplete();
+  }
+
+  clearEventFlights(): void {
+    this.flights.clear();
   }
 
   loadMergeGraph(data: GraphData): void {

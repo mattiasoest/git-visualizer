@@ -39,6 +39,25 @@ function capEvents(events: EventView[]): EventView[] {
   return events.slice(0, MAX_STREAM_EVENTS);
 }
 
+function syncKnownIds(knownIds: Set<string>, events: EventView[]): void {
+  const activeIds = new Set(events.map((event) => event.id));
+  for (const id of knownIds) {
+    if (!activeIds.has(id)) {
+      knownIds.delete(id);
+    }
+  }
+}
+
+function countEventsByType(events: EventView[]): Record<string, number> {
+  const counts = emptyTypeCounts();
+  for (const event of events) {
+    if (event.type in counts) {
+      counts[event.type] += 1;
+    }
+  }
+  return counts;
+}
+
 export function useEventStream() {
   const [events, setEvents] = useState<EventView[]>([]);
   const [totalReceived, setTotalReceived] = useState(0);
@@ -77,9 +96,21 @@ export function useEventStream() {
         return next;
       });
     }
+    let cappedForTypeSync: EventView[] | null = null;
     startTransition(() => {
-      setEvents((current) => capEvents(mergeEvents(current, batch)));
+      setEvents((current) => {
+        const merged = mergeEvents(current, batch);
+        const next = capEvents(merged);
+        syncKnownIds(knownIdsRef.current, next);
+        if (next.length < merged.length) {
+          cappedForTypeSync = next;
+        }
+        return next;
+      });
     });
+    if (cappedForTypeSync) {
+      setTypeCounts(countEventsByType(cappedForTypeSync));
+    }
   }, []);
 
   const handleIncoming = useCallback(
@@ -104,10 +135,16 @@ export function useEventStream() {
     }
 
     startTransition(() => {
+      let pruned: EventView[] | null = null;
       setEvents((current) => {
         const next = current.filter((event) => !removeIds.has(event.id));
-        return next.length === current.length ? current : next;
+        if (next.length === current.length) return current;
+        pruned = next;
+        return next;
       });
+      if (pruned) {
+        setTypeCounts(countEventsByType(pruned));
+      }
     });
   }, []);
 

@@ -5,7 +5,9 @@ import { useCosmosNavigation } from '../../hooks/useCosmosNavigation';
 import { useSpaceEventSync } from '../../hooks/useSpaceEventSync';
 import { useSpaceScene } from '../../hooks/useSpaceScene';
 import { useStableGraphData } from '../../hooks/useStableGraphData';
+import { useTabCatchUp } from '../../hooks/useTabCatchUp';
 import type { CosmosNavTarget } from '../../hooks/useCosmosNavigation';
+import { MERGE_EVENT_THRESHOLD } from '../../space/utils/constants';
 import { Controls } from '../Controls/Controls';
 import { CosmosNav } from '../CosmosNav/CosmosNav';
 import { ClusterLoadingOverlay } from '../ClusterLoadingOverlay/ClusterLoadingOverlay';
@@ -38,6 +40,8 @@ export function SpaceVisualization({
     isPreparingDetail,
     isMergeAnimating,
   } = useClusterArchives(events, onEventsArchived);
+
+  const { skipAnimations, clearSkipAnimations } = useTabCatchUp();
 
   const graphData = useStableGraphData(activeEvents);
   const {
@@ -110,6 +114,13 @@ export function SpaceVisualization({
     sceneRef.current?.navigateTo('global', archiveIds, { smooth: false });
   }, [sceneReady, viewMode, sceneRef, archiveIds, isMergeAnimating]);
 
+  useEffect(() => {
+    if (!skipAnimations) return;
+    if (pendingMerge) return;
+    if (activeEvents.length >= MERGE_EVENT_THRESHOLD) return;
+    clearSkipAnimations();
+  }, [skipAnimations, pendingMerge, activeEvents.length, clearSkipAnimations]);
+
   const galaxyArchives = useMemo(
     () =>
       archives.map((archive) => ({
@@ -131,6 +142,7 @@ export function SpaceVisualization({
       archiveCountBeforeMerge: archives.length,
       onMergeComplete: handleMergeComplete,
       onDetailLayoutReady: completeDetailPrepare,
+      skipAnimations,
     }),
     [
       viewMode,
@@ -141,6 +153,7 @@ export function SpaceVisualization({
       archives.length,
       handleMergeComplete,
       completeDetailPrepare,
+      skipAnimations,
     ],
   );
 

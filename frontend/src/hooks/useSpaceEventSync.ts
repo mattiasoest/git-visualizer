@@ -22,6 +22,7 @@ interface CosmosSyncInput {
   archiveCountBeforeMerge: number;
   onMergeComplete: () => void;
   onDetailLayoutReady?: () => void;
+  skipAnimations?: boolean;
 }
 
 export function useSpaceEventSync(
@@ -75,10 +76,16 @@ export function useSpaceEventSync(
     cosmos.mode,
     cosmos.archives,
     cosmos.detailGraphData,
+    cosmos.pendingMerge,
     sceneRef,
   ]);
 
   const mergeCompletedRef = useRef(false);
+
+  useEffect(() => {
+    if (!cosmos.skipAnimations) return;
+    sceneRef.current?.skipMergeAnimation();
+  }, [cosmos.skipAnimations, sceneRef]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -87,23 +94,34 @@ export function useSpaceEventSync(
     if (mergeStartedIdRef.current === pending.id) return;
 
     mergeCompletedRef.current = false;
-    scene.loadMergeGraph(cosmosRef.current.mergeDisplayGraph);
     mergeStartedIdRef.current = pending.id;
-    scene.startMergeAnimation(
-      { id: pending.id, eventCount: pending.eventCount },
-      cosmosRef.current.archiveCountBeforeMerge,
-      () => {
-        if (mergeCompletedRef.current) return;
-        mergeCompletedRef.current = true;
-        mergeStartedIdRef.current = null;
-        cosmosRef.current.onMergeComplete();
-      },
-    );
+
+    const onComplete = () => {
+      if (mergeCompletedRef.current) return;
+      mergeCompletedRef.current = true;
+      mergeStartedIdRef.current = null;
+      cosmosRef.current.onMergeComplete();
+    };
+
+    const archive = { id: pending.id, eventCount: pending.eventCount };
+    const archiveIndex = cosmosRef.current.archiveCountBeforeMerge;
+
+    if (cosmosRef.current.skipAnimations) {
+      scene.updateGraph(graphData);
+      scene.instantRevealActiveCluster();
+      scene.instantCompleteMerge(archive, archiveIndex, onComplete);
+      return;
+    }
+
+    scene.loadMergeGraph(cosmosRef.current.mergeDisplayGraph);
+    scene.startMergeAnimation(archive, archiveIndex, onComplete);
   }, [
+    graphData,
     cosmos.pendingMerge,
     cosmos.mergeDisplayGraph,
     cosmos.archiveCountBeforeMerge,
     cosmos.onMergeComplete,
+    cosmos.skipAnimations,
     sceneRef,
   ]);
 
@@ -129,6 +147,14 @@ export function useSpaceEventSync(
     }
 
     scene.updateGraph(graphData);
+
+    if (cosmosRef.current.skipAnimations) {
+      scene.clearEventFlights();
+      scene.instantRevealActiveCluster();
+      seenEventIds.current = new Set(activeEvents.map((event) => event.id));
+      scene.syncEventTypeFilterVisibility();
+      return;
+    }
 
     const currentActiveTypes = activeTypesRef.current;
     for (
@@ -161,7 +187,14 @@ export function useSpaceEventSync(
     if (seenEventIds.current.size > activeEvents.length * 2) {
       seenEventIds.current = new Set(activeEvents.map((event) => event.id));
     }
-  }, [graphData, activeEvents, sceneRef, cosmos.mode, cosmos.pendingMerge]);
+  }, [
+    graphData,
+    activeEvents,
+    sceneRef,
+    cosmos.mode,
+    cosmos.pendingMerge,
+    cosmos.skipAnimations,
+  ]);
 
   useEffect(() => {
     sceneRef.current?.setActiveEventTypes(activeTypes);

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EventView } from '../types/event';
 import { buildGraph, type GraphData } from '../space/utils/graphBuilder';
-import { MERGE_EVENT_THRESHOLD } from '../space/utils/constants';
+import {
+  MAX_GALAXY_ARCHIVES,
+  MERGE_EVENT_THRESHOLD,
+} from '../space/utils/constants';
 
 export type CosmosViewMode = 'overview' | 'detail';
 
@@ -48,7 +51,9 @@ export function useClusterArchives(
 
       setArchives((prev) => {
         if (prev.some((archive) => archive.id === pending.id)) return prev;
-        return [...prev, pending];
+        const next = [...prev, pending];
+        if (next.length <= MAX_GALAXY_ARCHIVES) return next;
+        return next.slice(next.length - MAX_GALAXY_ARCHIVES);
       });
       onEventsArchivedRef.current?.(pending.eventIds);
       return null;
@@ -120,6 +125,12 @@ export function useClusterArchives(
     setViewMode('overview');
     setSelectedArchiveId(null);
   }, []);
+
+  useEffect(() => {
+    if (!selectedArchiveId) return;
+    if (archives.some((archive) => archive.id === selectedArchiveId)) return;
+    exitDetail();
+  }, [archives, selectedArchiveId, exitDetail]);
 
   return {
     archives,

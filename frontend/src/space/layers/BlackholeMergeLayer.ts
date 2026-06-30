@@ -273,4 +273,9 @@ export class BlackholeMergeLayer {
     this.resetMeshes();
     this.phase = 'idle';
   }
+
+  /** Tear down in-flight VFX when a merge animation is skipped. */
+  cancel(): void {
+    this.reset();
+  }
 }

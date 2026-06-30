@@ -37,8 +37,10 @@ export class GalaxyLayer {
     archives.forEach((archive, index) => {
       const labelText = formatEventCount(archive.eventCount);
       const existing = this.entries.get(archive.id);
+      const slot = archiveWorldOffset(index);
 
       if (existing) {
+        existing.visual.group.position.copy(slot);
         existing.visual.group.scale.setScalar(1);
         return;
       }
@@ -48,7 +50,7 @@ export class GalaxyLayer {
         archive.id,
         labelText,
       );
-      visual.group.position.copy(archiveWorldOffset(index));
+      visual.group.position.copy(slot);
       this.group.add(visual.group);
       this.entries.set(archive.id, { archiveId: archive.id, visual });
     });
@@ -77,10 +79,11 @@ export class GalaxyLayer {
     entry.visual.group.scale.setScalar(Math.max(scale, 0.001));
   }
 
-  /** Lock in the newly archived galaxy at its merge position without moving it. */
-  finalizePostMergeArchive(_archiveIndex: number, archiveId: string): void {
+  /** Lock in the newly archived galaxy at its fixed archive slot. */
+  finalizePostMergeArchive(archiveIndex: number, archiveId: string): void {
     const entry = this.entries.get(archiveId);
     if (!entry) return;
+    entry.visual.group.position.copy(archiveWorldOffset(archiveIndex));
     entry.visual.group.scale.setScalar(1);
   }
 

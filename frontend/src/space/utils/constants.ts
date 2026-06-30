@@ -18,8 +18,12 @@ export const SPAWN_DEFERRED = -1;
 export const MAX_ACTIVE_FLIGHTS = 24;
 export const EVENT_PARTICLE_SIZE = EVENT_NODE_BASE_RADIUS * 2.2;
 export const MERGE_EVENT_THRESHOLD = 1500;
+/** Skip merge / flight animations after the tab was hidden this long (ms). */
+export const BACKGROUND_CATCHUP_MS = 30_000;
 /** Hard cap on live SSE events kept in React state (active + pending merge buffer). */
 export const MAX_STREAM_EVENTS = MERGE_EVENT_THRESHOLD * 2;
+/** Merged galaxy archives kept in memory (oldest evicted beyond this limit). */
+export const MAX_GALAXY_ARCHIVES = 64;
 /** Repo label textures cached by name — evict oldest beyond this limit. */
 export const MAX_LABEL_TEXTURE_CACHE = 256;
 export const GALAXY_SPACING = 30;
