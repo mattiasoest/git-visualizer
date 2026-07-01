@@ -109,7 +109,9 @@ export function useEventStream() {
       });
     });
     if (cappedForTypeSync) {
-      setTypeCounts(countEventsByType(cappedForTypeSync));
+      queueMicrotask(() =>
+        setTypeCounts(countEventsByType(cappedForTypeSync!)),
+      );
     }
   }, []);
 
@@ -135,16 +137,12 @@ export function useEventStream() {
     }
 
     startTransition(() => {
-      let pruned: EventView[] | null = null;
       setEvents((current) => {
         const next = current.filter((event) => !removeIds.has(event.id));
         if (next.length === current.length) return current;
-        pruned = next;
+        queueMicrotask(() => setTypeCounts(countEventsByType(next)));
         return next;
       });
-      if (pruned) {
-        setTypeCounts(countEventsByType(pruned));
-      }
     });
   }, []);
 

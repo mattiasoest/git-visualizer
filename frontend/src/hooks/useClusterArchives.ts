@@ -40,6 +40,7 @@ export function useClusterArchives(
   );
   const [isPreparingDetail, setIsPreparingDetail] = useState(false);
   const mergeCompletedIds = useRef<Set<string>>(new Set());
+  const pruneAfterMergeRef = useRef<string[] | null>(null);
   const onEventsArchivedRef = useRef(onEventsArchived);
   onEventsArchivedRef.current = onEventsArchived;
 
@@ -48,6 +49,7 @@ export function useClusterArchives(
       if (!pending) return null;
       if (mergeCompletedIds.current.has(pending.id)) return null;
       mergeCompletedIds.current.add(pending.id);
+      pruneAfterMergeRef.current = pending.eventIds;
 
       setArchives((prev) => {
         if (prev.some((archive) => archive.id === pending.id)) return prev;
@@ -55,10 +57,16 @@ export function useClusterArchives(
         if (next.length <= MAX_GALAXY_ARCHIVES) return next;
         return next.slice(next.length - MAX_GALAXY_ARCHIVES);
       });
-      onEventsArchivedRef.current?.(pending.eventIds);
       return null;
     });
   }, []);
+
+  useEffect(() => {
+    const eventIds = pruneAfterMergeRef.current;
+    if (!eventIds) return;
+    pruneAfterMergeRef.current = null;
+    onEventsArchivedRef.current?.(eventIds);
+  }, [pendingMerge, archives]);
 
   const archivedEventIds = useMemo(
     () => new Set(archives.flatMap((archive) => archive.eventIds)),
