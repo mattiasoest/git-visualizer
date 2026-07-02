@@ -28,6 +28,7 @@ body {
 .app {
   height: var(--app-height);
   width: 100%;
+  min-width: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
@@ -54,6 +55,8 @@ body {
   position: relative;
   z-index: 2;
   flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .status-bar__left {
@@ -106,11 +109,28 @@ body {
 
 .status-bar__type-counts {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem 1.25rem;
   margin-left: auto;
+}
+
+.status-bar__type-counts--wrapped {
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+.status-bar-probe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  width: max-content;
+  max-width: none;
+  z-index: -1;
+  font-size: 0.85rem;
 }
 
 .status-bar__type-count {
@@ -119,6 +139,7 @@ body {
   gap: 0.28rem;
   min-width: 4.75rem;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .status-bar__type-label {
@@ -140,6 +161,18 @@ body {
     padding: 0.5rem 1rem;
     font-size: 0.75rem;
     gap: 0.35rem 0.75rem;
+  }
+
+  .status-bar-probe {
+    font-size: 0.75rem;
+  }
+
+  .status-bar-probe .status-bar__type-counts {
+    gap: 0.35rem 0.85rem;
+  }
+
+  .status-bar-probe .status-bar__type-count {
+    min-width: 3.85rem;
   }
 
   .status-bar__total {
