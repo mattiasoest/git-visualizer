@@ -1,0 +1,142 @@
+.toggle-menu {
+  position: relative;
+  z-index: 12;
+}
+
+.toggle-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(120, 180, 255, 0.32);
+  background: rgba(12, 16, 48, 0.92);
+  color: #b8cff8;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+
+.toggle-menu__trigger:hover {
+  border-color: rgba(120, 180, 255, 0.55);
+  background: rgba(20, 28, 72, 0.94);
+  color: #d4e4ff;
+  box-shadow: 0 0 14px rgba(120, 180, 255, 0.16);
+}
+
+.toggle-menu__trigger:focus-visible {
+  outline: 2px solid rgba(120, 180, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.toggle-menu__trigger--open {
+  border-color: rgba(120, 180, 255, 0.55);
+  background: rgba(24, 34, 80, 0.96);
+  color: #d4e4ff;
+  box-shadow: 0 0 14px rgba(120, 180, 255, 0.18);
+}
+
+.toggle-menu__trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.toggle-menu__trigger-svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  display: block;
+}
+
+.toggle-menu__trigger-label {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toggle-menu--icon-only .toggle-menu__trigger {
+  border-radius: 0.4rem;
+  padding: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.toggle-menu--icon-only .toggle-menu__trigger-svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.toggle-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  min-width: 8.4rem;
+  max-width: min(12.8rem, calc(100vw - 2rem));
+  max-height: min(16rem, calc(var(--app-height, 100dvh) - 8rem));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(120, 180, 255, 0.25);
+  background: rgba(8, 12, 36, 0.96);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.toggle-menu__item {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #8a9cc4;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.toggle-menu__item:hover {
+  color: #c8d8ff;
+  background: rgba(30, 40, 90, 0.6);
+}
+
+.toggle-menu__item--active {
+  color: #d4e4ff;
+  border-color: rgba(120, 180, 255, 0.45);
+  background: rgba(40, 56, 120, 0.75);
+  box-shadow: 0 0 12px rgba(120, 180, 255, 0.15);
+}
+
+.toggle-menu__item--active[style*='--item-color'] {
+  border-color: var(--item-color);
+  background: color-mix(in srgb, var(--item-color) 12%, rgba(12, 16, 48, 0.85));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--item-color) 35%, transparent);
+}
+
+@media (max-width: 480px) {
+  .toggle-menu__trigger {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .toggle-menu__item {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.55rem;
+  }
+}

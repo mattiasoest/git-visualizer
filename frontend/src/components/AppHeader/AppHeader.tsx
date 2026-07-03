@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { FILTERABLE_TYPES, eventColor } from '../../types/event';
+import { ToggleMenu } from '../ToggleMenu/ToggleMenu';
 import './AppHeader.css';
 
 function eventTypeLabel(type: string): string {
@@ -56,6 +58,17 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ activeTypes, onToggleType }: AppHeaderProps) {
+  const filterItems = useMemo(
+    () =>
+      FILTERABLE_TYPES.map((type) => ({
+        id: type,
+        label: eventTypeLabel(type),
+        active: activeTypes.has(type),
+        color: eventColor(type),
+      })),
+    [activeTypes],
+  );
+
   return (
     <header className="app-header">
       <div
@@ -63,7 +76,17 @@ export function AppHeader({ activeTypes, onToggleType }: AppHeaderProps) {
         aria-label="GORBIT — GitHub public activity streaming in real time"
       >
         <div className="app-header__identity">
-          <OrbitalMark className="app-header__mark" />
+          <div className="app-header__logo-anchor">
+            <OrbitalMark className="app-header__mark" />
+            <ToggleMenu
+              className="app-header__filters-menu"
+              items={filterItems}
+              onItemClick={onToggleType}
+              mode="multi"
+              iconOnly
+              ariaLabel="Event type filters"
+            />
+          </div>
           <h1 className="app-header__title">
             <span className="app-header__title-gorbit">GORBIT</span>
           </h1>
@@ -72,7 +95,11 @@ export function AppHeader({ activeTypes, onToggleType }: AppHeaderProps) {
           <p>GitHub public activity streaming in real time</p>
         </div>
       </div>
-      <div className="filters" role="toolbar" aria-label="Event type filters">
+      <div
+        className="filters filters--inline"
+        role="toolbar"
+        aria-label="Event type filters"
+      >
         {FILTERABLE_TYPES.map((type) => (
           <button
             key={type}
