@@ -79,14 +79,19 @@ export function getLabelTexture(
   const fontSize = 11;
   const paddingX = 7;
   const paddingY = 2;
+  const lineGap = 2;
   const borderRadius = 4;
+  const lines = text.split('\n');
 
   const measureCanvas = document.createElement('canvas');
   const measureCtx = measureCanvas.getContext('2d')!;
   measureCtx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
-  const textWidth = Math.ceil(measureCtx.measureText(text).width);
+  const textWidth = Math.ceil(
+    Math.max(...lines.map((line) => measureCtx.measureText(line).width)),
+  );
   const logicalWidth = textWidth + paddingX * 2;
-  const logicalHeight = fontSize + paddingY * 2 + 2;
+  const logicalHeight =
+    lines.length * fontSize + (lines.length - 1) * lineGap + paddingY * 2 + 2;
 
   const canvas = document.createElement('canvas');
   canvas.width = logicalWidth * dpr;
@@ -103,10 +108,12 @@ export function getLabelTexture(
   ctx.stroke();
 
   ctx.fillStyle = style.text;
-  ctx.textBaseline = 'middle';
+  ctx.textBaseline = 'top';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
   ctx.shadowBlur = 4;
-  ctx.fillText(text, paddingX, logicalHeight / 2);
+  lines.forEach((line, lineIndex) => {
+    ctx.fillText(line, paddingX, paddingY + lineIndex * (fontSize + lineGap));
+  });
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;

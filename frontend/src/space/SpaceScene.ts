@@ -333,7 +333,12 @@ export class SpaceScene {
     const archiveSlot = archiveWorldOffset(archiveIndex);
 
     if (this.mergeSpawnGalaxy) {
-      this.galaxies.spawnGalaxyAt(this.mergeSpawnGalaxy, archiveSlot, 1);
+      this.galaxies.spawnGalaxyAt(
+        this.mergeSpawnGalaxy,
+        archiveIndex,
+        archiveSlot,
+        1,
+      );
     }
     this.blackholeMerge.cancel();
     this.activeNodes.clearMergeSuck();
@@ -373,7 +378,7 @@ export class SpaceScene {
     const archiveSlot = archiveWorldOffset(archiveIndex);
 
     this.flights.clear();
-    this.galaxies.spawnGalaxyAt(archive, archiveSlot, 1);
+    this.galaxies.spawnGalaxyAt(archive, archiveIndex, archiveSlot, 1);
     this.galaxies.finalizePostMergeArchive(archiveIndex, archive.id);
     this.updateActiveClusterPosition(archiveIndex + 1);
     this.activeClusterGroup.visible = true;
@@ -723,6 +728,7 @@ export class SpaceScene {
     if (this.mergeSpawnGalaxy && frame.phase === 'spawn') {
       this.galaxies.spawnGalaxyAt(
         this.mergeSpawnGalaxy,
+        this.mergeArchiveCountBefore,
         this.mergeWorldPosition,
         frame.galaxySpawnT,
       );

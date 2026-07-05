@@ -19,6 +19,10 @@ function formatEventCount(count: number): string {
   return `${count} events`;
 }
 
+function formatGalaxyLabel(archiveIndex: number, eventCount: number): string {
+  return `Galaxy ${archiveIndex + 1}\n${formatEventCount(eventCount)}`;
+}
+
 export class GalaxyLayer {
   readonly group = new THREE.Group();
   private factory = new GalaxyVisualFactory();
@@ -35,7 +39,7 @@ export class GalaxyLayer {
     }
 
     archives.forEach((archive, index) => {
-      const labelText = formatEventCount(archive.eventCount);
+      const labelText = formatGalaxyLabel(index, archive.eventCount);
       const existing = this.entries.get(archive.id);
       const slot = archiveWorldOffset(index);
 
@@ -59,12 +63,13 @@ export class GalaxyLayer {
   /** Spawn or update a galaxy during merge animation before it is committed to archives. */
   spawnGalaxyAt(
     archive: GalaxyArchiveRef,
+    archiveIndex: number,
     worldPosition: THREE.Vector3,
     scale: number,
   ): void {
     let entry = this.entries.get(archive.id);
     if (!entry) {
-      const labelText = formatEventCount(archive.eventCount);
+      const labelText = formatGalaxyLabel(archiveIndex, archive.eventCount);
       const visual = this.factory.createGalaxy(
         archive.eventCount,
         archive.id,
