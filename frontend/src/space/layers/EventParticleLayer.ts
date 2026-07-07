@@ -1,5 +1,10 @@
 import * as THREE from 'three';
-import { MAX_ARCHIVE_EVENTS } from '../utils/constants';
+import {
+  EVENT_NODE_BASE_RADIUS,
+  EVENT_SPAWN_MS,
+  MAX_ARCHIVE_EVENTS,
+  SPAWN_DEFERRED,
+} from '../utils/constants';
 import {
   eventOrbitOffset,
   resolveEventOrbitPhaseOffset,
@@ -9,8 +14,6 @@ import {
   type SizedPointsMaterial,
 } from '../utils/sizedPointMaterial';
 
-const EVENT_NODE_BASE_RADIUS = 0.75;
-const EVENT_SPAWN_MS = 1600;
 const MAX_EVENTS = 1024;
 
 /** Original PointsMaterial sizes — the core size attribute was never used by Three.js. */
@@ -23,8 +26,6 @@ const UPGRADED_GLOW_SIZE =
   NORMAL_GLOW_MATERIAL_SIZE * UPGRADED_SIZE_SCALE * 1.175;
 const UPGRADED_GLOW_DARKEN = 0.32;
 const UPGRADED_GLOW_OPACITY = 0.58;
-
-export const EVENT_SPAWN_DEFERRED = -1;
 
 export interface EventParticleState {
   id: string;
@@ -231,7 +232,7 @@ export class EventParticleLayer {
 
   isSpawnDeferred(id: string): boolean {
     const state = this.states.get(id);
-    return state ? state.spawnStartTime === EVENT_SPAWN_DEFERRED : true;
+    return state ? state.spawnStartTime === SPAWN_DEFERRED : true;
   }
 
   isSuppressed(id: string): boolean {
@@ -334,7 +335,7 @@ export class EventParticleLayer {
       const worldPos = this.computeWorldPosition(id, state, time);
       if (!worldPos) continue;
 
-      const deferred = state.spawnStartTime === EVENT_SPAWN_DEFERRED;
+      const deferred = state.spawnStartTime === SPAWN_DEFERRED;
       if (deferred || this.hiddenIds.has(id) || state.suppressed) continue;
 
       const spawning =

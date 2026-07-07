@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EventView } from '../types/event';
 import { buildGraph, type GraphData } from '../space/utils/graphBuilder';
+import type { CosmosViewMode } from '../space/utils/types';
 import {
   MAX_GALAXY_ARCHIVES,
   MERGE_EVENT_THRESHOLD,
 } from '../space/utils/constants';
 
-export type CosmosViewMode = 'overview' | 'detail';
-
-export interface ClusterArchive {
+interface ClusterArchive {
   id: string;
   eventCount: number;
   eventIds: string[];

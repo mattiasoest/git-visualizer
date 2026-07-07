@@ -118,7 +118,7 @@ export class GalaxyVisualFactory {
     hitSphere.userData = { kind: 'galaxy', archiveId };
     group.add(hitSphere);
 
-    const label = createLabelSprite(labelText, 'repo');
+    const label = createLabelSprite(labelText);
     label.position.set(0, scale * 0.9, 0);
     group.add(label);
 

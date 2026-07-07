@@ -14,10 +14,7 @@ import {
   disposeEventLabel,
 } from '../utils/labelSprite';
 import type { NodeState } from '../utils/types';
-import {
-  EVENT_SPAWN_DEFERRED,
-  type EventParticleLayer,
-} from './EventParticleLayer';
+import type { EventParticleLayer } from './EventParticleLayer';
 import type { RepoVisualFactory } from './RepoVisualFactory';
 
 export class GraphNodeLayer {
@@ -546,7 +543,7 @@ export class GraphNodeLayer {
         id: node.id,
         parentRepoId: node.parentRepoId!,
         color: node.color ?? '#8b949e',
-        spawnStartTime: state?.spawnStartTime ?? EVENT_SPAWN_DEFERRED,
+        spawnStartTime: state?.spawnStartTime ?? SPAWN_DEFERRED,
         pulseUntil: state?.pulseUntil ?? 0,
         sizeScale: burst?.sizeScale ?? 1,
         suppressed: burst?.suppressed ?? false,
@@ -612,7 +609,7 @@ export class GraphNodeLayer {
     (state.label.material as THREE.SpriteMaterial).dispose();
     state.anchor.remove(state.label);
 
-    const label = createLabelSprite(text, 'repo');
+    const label = createLabelSprite(text);
     label.position.set(0, 2.6, 0);
     state.anchor.add(label);
     state.label = label;
@@ -692,7 +689,7 @@ export class GraphNodeLayer {
       }
       label.visible = false;
     } else {
-      label = createLabelSprite(node.label, 'repo');
+      label = createLabelSprite(node.label);
       label.position.set(0, 2.6, 0);
     }
     anchor.add(label);

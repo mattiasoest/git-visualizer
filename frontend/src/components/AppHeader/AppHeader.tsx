@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { FILTERABLE_TYPES, eventColor } from '../../types/event';
+import {
+  FILTERABLE_TYPES,
+  eventColor,
+  eventTypeLabel,
+} from '../../types/event';
 import { ToggleMenu } from '../ToggleMenu/ToggleMenu';
 import './AppHeader.css';
-
-function eventTypeLabel(type: string): string {
-  return type.replace('Event', '');
-}
 
 function OrbitalMark({ className }: { className?: string }) {
   return (

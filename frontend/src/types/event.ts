@@ -26,7 +26,11 @@ export type ConnectionStatus =
   | 'reconnecting'
   | 'disconnected';
 
-export const EVENT_TYPE_COLORS: Record<string, string> = {
+export function eventTypeLabel(type: string): string {
+  return type.replace('Event', '');
+}
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
   PushEvent: '#f85149',
   PullRequestEvent: '#a371f7',
   IssuesEvent: '#f0883e',

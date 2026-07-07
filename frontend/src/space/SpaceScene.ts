@@ -21,16 +21,13 @@ import { disposeLabelTextures } from './utils/labelSprite';
 import { RaycastPicker } from './utils/raycastPicker';
 import { pointsAttenuationScale } from './utils/sizedPointMaterial';
 import { softCircleSprite } from './utils/softSprite';
-import type { EventFlightPayload } from './utils/types';
+import type {
+  CosmosViewMode,
+  EventFlightPayload,
+  GalaxyArchiveRef,
+} from './utils/types';
 
-export type { EventFlightPayload } from './utils/types';
-
-export type CosmosViewMode = 'overview' | 'detail';
-
-export interface GalaxyArchiveRef {
-  id: string;
-  eventCount: number;
-}
+export type { CosmosViewMode, GalaxyArchiveRef } from './utils/types';
 
 export interface CosmosLayoutInput {
   mode: CosmosViewMode;
@@ -474,11 +471,6 @@ export class SpaceScene {
       return;
     }
     this.focusGlobal(archiveCount, immediate);
-  }
-
-  /** @deprecated Use focusGlobal */
-  focusOverview(archiveCount: number): void {
-    this.focusGlobal(archiveCount);
   }
 
   focusCamera(target: THREE.Vector3, distance: number, animate: boolean): void {

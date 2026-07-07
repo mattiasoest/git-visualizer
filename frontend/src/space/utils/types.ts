@@ -1,6 +1,13 @@
 import type * as THREE from 'three';
 import type { GraphNode } from './graphBuilder';
 
+export type CosmosViewMode = 'overview' | 'detail';
+
+export interface GalaxyArchiveRef {
+  id: string;
+  eventCount: number;
+}
+
 export interface EventFlightPayload {
   eventId: string;
   repoId: string;

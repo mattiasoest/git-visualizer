@@ -2,10 +2,7 @@ import * as THREE from 'three';
 import { archiveWorldOffset } from '../utils/galaxyLayout';
 import { GalaxyVisualFactory, type GalaxyVisual } from './GalaxyVisualFactory';
 
-export interface GalaxyArchiveRef {
-  id: string;
-  eventCount: number;
-}
+import type { GalaxyArchiveRef } from '../utils/types';
 
 interface GalaxyEntry {
   archiveId: string;

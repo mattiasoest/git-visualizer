@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { EVENT_PARTICLE_SIZE } from './constants';
 import type { GraphNode } from './graphBuilder';
 
 export const ORG_SPLIT_THRESHOLD = 4;
@@ -7,8 +8,6 @@ export const SUB_ORBIT_RADIUS = 12;
 export const SUB_ORBIT_MIN = 3;
 const REPO_ORBIT_SPREAD = 0.6;
 const EVENT_ORBIT_RADIUS = 6.5;
-export const EVENT_NODE_BASE_RADIUS = 0.75;
-export const EVENT_PARTICLE_DIAMETER = EVENT_NODE_BASE_RADIUS * 2.2;
 const ORBIT_ANGULAR_SPEED = 0.25;
 
 const scratchA = new THREE.Vector3();
@@ -62,7 +61,7 @@ export function resolveEventOrbitPhaseOffset(
   time: number,
   siblings: { id: string; phaseOffset: number }[],
 ): number {
-  const minDist = EVENT_PARTICLE_DIAMETER;
+  const minDist = EVENT_PARTICLE_SIZE;
   const radius = EVENT_ORBIT_RADIUS + (hashToUnitVector(eventId).y + 1) * 2;
   const angleStep = minDist / radius;
   const maxPhase = Math.PI * 2;

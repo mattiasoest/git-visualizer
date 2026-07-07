@@ -2,11 +2,8 @@ import { useEffect, useRef, type RefObject } from 'react';
 import type { EventView } from '../types/event';
 import { eventColor } from '../types/event';
 import type { GraphData } from '../space/utils/graphBuilder';
-import type {
-  CosmosViewMode,
-  GalaxyArchiveRef,
-  SpaceScene,
-} from '../space/SpaceScene';
+import type { CosmosViewMode, GalaxyArchiveRef } from '../space/utils/types';
+import type { SpaceScene } from '../space/SpaceScene';
 
 interface PendingMergeRef {
   id: string;

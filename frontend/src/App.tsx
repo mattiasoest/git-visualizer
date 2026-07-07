@@ -4,12 +4,8 @@ import { SpaceVisualization } from './components/SpaceVisualization/SpaceVisuali
 import { useEventStream } from './hooks/useEventStream';
 import { useStatusBarTypeCountsFit } from './hooks/useStatusBarTypeCountsFit';
 import { useViewportHeight } from './hooks/useViewportHeight';
-import { FILTERABLE_TYPES, eventColor } from './types/event';
+import { FILTERABLE_TYPES, eventColor, eventTypeLabel } from './types/event';
 import './App.css';
-
-function eventTypeLabel(type: string): string {
-  return type.replace('Event', '');
-}
 
 const StatusBarTypeCounts = forwardRef<
   HTMLSpanElement,

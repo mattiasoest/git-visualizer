@@ -15,11 +15,3 @@ export function archiveWorldOffset(archiveIndex: number): THREE.Vector3 {
 export function activeClusterWorldOffset(archiveCount: number): THREE.Vector3 {
   return scratch.set(archiveCount * ACTIVE_CLUSTER_GAP, 0, 0).clone();
 }
-
-export function archiveSegmentIndex(archiveIndex: number): number {
-  return archiveIndex;
-}
-
-export function activeSegmentIndex(archiveCount: number): number {
-  return archiveCount;
-}
